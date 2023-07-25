@@ -7,7 +7,7 @@
 from pyteomics import mzml, mzxml
 import numpy as np
 import os
-import peak_detect
+from . import peak_detect
 import matplotlib.pyplot as plt
 import pandas as pd
 

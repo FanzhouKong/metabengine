@@ -6,7 +6,7 @@
 import numpy as np
 from tqdm import tqdm
 from scipy.signal import argrelextrema
-from msms import spec_similarity
+from .msms import spec_similarity
 import copy
 
 
@@ -417,3 +417,5 @@ class Roi:
         if len(self.ms2_seq) > 1:
             total_ints = [np.sum(ms2.prod_int_seq) for ms2 in self.ms2_seq]
             self.best_ms2 = self.ms2_seq[np.argmax(total_ints)]
+        elif len(self.ms2_seq) == 1:
+            self.best_ms2 = self.ms2_seq[0]

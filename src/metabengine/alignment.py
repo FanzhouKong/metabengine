@@ -139,6 +139,23 @@ class AlignedFeature:
         self.average_height_seq = np.concatenate((np.full(file_count, 0.0), self.average_height_seq))
         self.ms2_seq = [None] * file_count + self.ms2_seq
 
+    
+    def choose_best_ms2(self):
+        """
+        A function to choose the best MS2 for the feature. 
+        The best MS2 is the one with the highest summed intensity.
+        """
+
+        total_ints = []
+
+        for ms2 in self.ms2_seq:
+            if ms2 is not None:
+                total_ints.append(np.sum(ms2.ints))
+            else:
+                total_ints.append(0.0)
+
+        self.best_ms2 = self.ms2_seq[np.argmax(total_ints)]
+
 
 def find_roi_from_data(feat, d, cross_file_params):
     """
