@@ -79,13 +79,18 @@ class MSData:
         self.ms1_idx = np.array([], dtype=int)   # MS1 scan index
         self.ms2_idx = np.array([], dtype=int)   # MS2 scan index
 
+        rt_unit = spectra[0]['scanList']['scan'][0]['scan start time'].unit_info
+
         # Iterate over all scans
         for spec in spectra:
             # Get the retention time and convert to minute
             try:
-                rt = spec['scanList']['scan'][0]['scan start time'] / 60
+                rt = spec['scanList']['scan'][0]['scan start time']
             except:
-                rt = spec['scanList']['scan'][0]['scan time'] / 60
+                rt = spec['scanList']['scan'][0]['scan time']
+            
+            if rt_unit == 'second':
+                rt = rt / 60
 
             # Check if the retention time is within the range
             if params.rt_range[0] < rt < params.rt_range[1]:
@@ -136,10 +141,15 @@ class MSData:
         self.ms1_idx = np.array([], dtype=int)   # MS1 scan index
         self.ms2_idx = np.array([], dtype=int)   # MS2 scan index
 
+        rt_unit = spectra[0]['scanList']['scan'][0]['scan start time'].unit_info
+
         # Iterate over all scans
         for spec in spectra:
             # Get the retention time and convert to minute
             rt = spec["retentionTime"]    # retention time of mzXML is in minute
+
+            if rt_unit == 'second':
+                rt = rt / 60
 
             # Check if the retention time is within the range
             if params.rt_range[0] < rt < params.rt_range[1]:
