@@ -150,7 +150,7 @@ class AlignedFeature:
 
         for ms2 in self.ms2_seq:
             if ms2 is not None:
-                total_ints.append(np.sum(ms2.ints))
+                total_ints.append(np.sum(ms2.prod_int_seq))
             else:
                 total_ints.append(0.0)
 

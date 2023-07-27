@@ -47,3 +47,15 @@ def process_files(file_names):
         feat.choose_best_ms2()
     
     return feature_list
+
+
+def read_raw_file_to_obj(file_name, estimate_param=False):
+    d = raw.MSData()
+    params = Params()
+    d.read_raw_data(file_name, params)
+
+    if estimate_param:
+        params.estimate_params(d)
+        d.params = params
+    
+    return d
