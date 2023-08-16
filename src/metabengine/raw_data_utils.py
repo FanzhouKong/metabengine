@@ -413,6 +413,53 @@ class MSData:
             plt.close()
         else:
             plt.show()
+        
+    
+    def find_ms2_by_mzrt(self, mz_target, rt_target, mz_tol=0.01, rt_tol=0.3, return_best=False):
+        """
+        Function to find MS2 scan by precursor m/z and retention time.
+
+        Parameters
+        ----------------------------------------------------------
+        mz_target: float
+            Precursor m/z.
+        rt_target: float
+            Retention time.
+        mz_tol: float
+            m/z tolerance.
+        rt_tol: float
+            Retention time tolerance.
+        return_best: bool
+            True: only return the best MS2 scan with the highest intensity.
+            False: return all MS2 scans as a list.
+        """
+
+        matched_ms2 = []
+
+        for id in self.ms2_idx:
+            rt = self.scans[id].rt
+
+            if rt < rt_target - rt_tol:
+                continue
+            
+            mz = self.scans[id].precs_mz
+            
+            if abs(mz - mz_target) < mz_tol and abs(rt - rt_target) < rt_tol:
+                matched_ms2.append(self.scans[id])
+        
+            if rt > rt_target + rt_tol:
+                break
+
+        if return_best:
+            if len(matched_ms2) > 1:
+                total_ints = [np.sum(ms2.prod_int_seq) for ms2 in matched_ms2]
+                return matched_ms2[np.argmax(total_ints)]
+            elif len(matched_ms2) == 1:
+                return matched_ms2[0]
+            else:
+                return None
+        else:
+            return matched_ms2      
 
 
 class Scan:
@@ -426,7 +473,7 @@ class Scan:
         precursor m/z, product m/z and intensities.
     """
 
-    def __init__(self, level, scan, rt):
+    def __init__(self, level=None, scan=None, rt=None):
         """
         Function to initiate MS1Scan by precursor mz,
         retention time.

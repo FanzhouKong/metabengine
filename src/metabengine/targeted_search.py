@@ -3,7 +3,7 @@
 # A module for targeted search
 
 # Import modules
-import raw_data_utils as raw
+from . import raw_data_utils as raw
 from .params import Params
 import numpy as np
 

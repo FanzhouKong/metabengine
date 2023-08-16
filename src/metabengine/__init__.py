@@ -14,8 +14,10 @@ def feat_detection(file_name, pred_quality_NN=False, annotate_isotope=False, out
     d = raw.MSData()
     params = Params()
     d.read_raw_data(file_name, params)
-    params.estimate_params(d)
+    params.estimate_params(d, estimate_mz_tol=False, estimate_cycle_time=True, estimate_int_tol=True)
     d.drop_ion_by_int(params)
+    params.estimate_params(d, estimate_mz_tol=True, estimate_cycle_time=False, estimate_int_tol=False)
+    d.params = params
     d.find_rois(params)
     d.cut_rois(params)
     d.process_rois(params)

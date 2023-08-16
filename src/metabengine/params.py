@@ -35,7 +35,7 @@ class Params:
         self.min_ion_num = 5
     
 
-    def estimate_params(self, d):
+    def estimate_params(self, d, estimate_mz_tol=True, estimate_cycle_time=True, estimate_int_tol=True):
         """
         Function to estimate the parameters from MS data.
         The parameters to be estimated include:
@@ -49,7 +49,6 @@ class Params:
             An MSData object that contains the MS data.
         """
 
-        # Use the first 100 scans to estimate the parameters
         mz_ms1_diff = 100.0
 
         int_ms1 = np.array([], dtype=int)
@@ -57,20 +56,27 @@ class Params:
         for i in d.ms1_idx:
             scan = d.scans[i]
             temp = np.diff(np.sort(scan.mz_seq))
-            if len(temp) > 0:
-                if np.min(temp) < mz_ms1_diff:
-                    mz_ms1_diff = np.min(temp)
-            int_ms1 = np.append(int_ms1, np.min(scan.int_seq))
+
+            if estimate_mz_tol:
+                if len(temp) > 0:
+                    if np.min(temp) < mz_ms1_diff:
+                        mz_ms1_diff = np.min(temp)
+            
+            if estimate_int_tol:
+                int_ms1 = np.append(int_ms1, np.min(scan.int_seq))
         
-        # Estimate the m/z tolerance
-        self.mz_tol_ms1 = mz_ms1_diff * 0.99
-        self.mz_tol_ms2 = mz_ms1_diff * 1.99
+        if estimate_mz_tol:
+            # Estimate the m/z tolerance
+            self.mz_tol_ms1 = mz_ms1_diff * 0.99
+            self.mz_tol_ms2 = mz_ms1_diff * 1.99
 
-        # Estimate the cycle time
-        self.cycle_time = np.median(np.diff(d.ms1_rt_seq))
+        if estimate_cycle_time:
+            # Estimate the cycle time
+            self.cycle_time = np.median(np.diff(d.ms1_rt_seq))
 
-        # Estimate the intensity tolerance
-        self.int_tol = int(np.mean(int_ms1) + 10*np.std(int_ms1))
+        if estimate_int_tol:
+            # Estimate the intensity tolerance
+            self.int_tol = int(np.mean(int_ms1) + 10*np.std(int_ms1))
 
 
     def print_params(self):

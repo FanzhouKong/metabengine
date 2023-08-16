@@ -4,9 +4,10 @@
 
 # Import modules
 import numpy as np
+from . import raw_data_utils
 
 
-def spec_similarity(spec1, spec2, mz_tol=0.01, sim_method='cosine', search_type='exact', filter_low_int=True, exclude_precursor=True, remove_precursor_mz=1.6):
+def spec_similarity(spec1, spec2, mz_tol=0.01, sim_method='cosine', search_type='exact', filter_low_int=True, filter_low_int_ratio=0.01, exclude_precursor=True, remove_precursor_mz=1.6):
     '''
     A function to calculate the dot product of two mass spectra.
 
@@ -33,6 +34,22 @@ def spec_similarity(spec1, spec2, mz_tol=0.01, sim_method='cosine', search_type=
     exclude_precursor: bool
         Whether to exclude precursor peak in MS/MS for similarity calculation. Default is True.
     '''
+
+    # if spec1 and spec2 are dictionaries, convert them to Spectrum objects
+    if isinstance(spec1, dict):
+        tmp = raw_data_utils.Scan()
+        tmp.precs_mz = spec1['PrecursorMZ']
+        tmp.prod_mz_seq = spec1['prodMZ']
+        tmp.prod_int_seq = spec1['prodIntensity']
+        spec1 = tmp
+
+    if isinstance(spec2, dict):
+        tmp = raw_data_utils.Scan()
+        tmp.precs_mz = spec2['PrecursorMZ']
+        tmp.prod_mz_seq = spec2['prodMZ']
+        tmp.prod_int_seq = spec2['prodIntensity']
+        spec2 = tmp
+
 
     if len(spec1.prod_mz_seq) == 0 or len(spec2.prod_mz_seq) == 0:
         return "Empty spectrum detected."
@@ -61,10 +78,10 @@ def spec_similarity(spec1, spec2, mz_tol=0.01, sim_method='cosine', search_type=
 
     # filter out low intensity peaks
     if filter_low_int:
-        mz1 = mz1[int1 > np.max(int1) * 0.01]
-        mz2 = mz2[int2 > np.max(int2) * 0.01]
-        int1= int1[int1 > np.max(int1) * 0.01]
-        int2= int2[int2 > np.max(int2) * 0.01]
+        mz1 = mz1[int1 > np.max(int1) * filter_low_int_ratio]
+        mz2 = mz2[int2 > np.max(int2) * filter_low_int_ratio]
+        int1= int1[int1 > np.max(int1) * filter_low_int_ratio]
+        int2= int2[int2 > np.max(int2) * filter_low_int_ratio]
 
     # scale int1 and int2 respectively to make inner product = 1
     int1 = int1 / np.inner(int1, int1) ** 0.5
@@ -161,3 +178,57 @@ def align_frag(mz1, mz2, mz_tol=0.01, mz_diff=0.0):
             id2.append(-pair[0]-1)
     
     return [id1, id2]
+
+
+def fast_spec_similarity(spec1, spec2, mz_tol=0.01, filter_low_int=True, filter_low_int_ratio=0.01, exclude_precursor=True, remove_precursor_mz=1.6):
+
+    if len(spec1["prodMZ"]) == 0 or len(spec2["prodMZ"]) == 0:
+        return "Empty spectrum."
+
+    mz1 = spec1["prodMZ"]
+    mz2 = spec2["prodMZ"]
+    int1= spec1["prodIntensity"]
+    int2= spec2["prodIntensity"]
+
+    # remove precursor peak
+    if exclude_precursor:
+        int1= int1[mz1 < spec1["PrecursorMZ"]-remove_precursor_mz]
+        int2= int2[mz2 < spec2["PrecursorMZ"]-remove_precursor_mz]
+        mz1 = mz1[mz1 < spec1["PrecursorMZ"]-remove_precursor_mz]
+        mz2 = mz2[mz2 < spec2["PrecursorMZ"]-remove_precursor_mz]
+
+    # filter low intensity peaks
+    if filter_low_int:
+        mz1 = mz1[int1 > np.max(int1) * filter_low_int_ratio]
+        mz2 = mz2[int2 > np.max(int2) * filter_low_int_ratio]
+        int1= int1[int1 > np.max(int1) * filter_low_int_ratio]
+        int2= int2[int2 > np.max(int2) * filter_low_int_ratio]
+    
+    if len(mz1) == 0 or len(mz2) == 0:
+        return "Empty spectrum."
+
+    # fast alignment
+    i = 0
+    j = 0
+
+    # scale int1 and int2 respectively to make inner product = 1
+    int1 = int1 / np.inner(int1, int1) ** 0.5
+    int2 = int2 / np.inner(int2, int2) ** 0.5
+
+    score = 0.0
+
+    while i < len(mz1) and j < len(mz2):
+        if abs(mz1[i] - mz2[j]) < mz_tol:
+            score += int1[i] * int2[j]
+            i += 1
+            j += 1
+        elif mz1[i] < mz2[j]:
+            i += 1
+        else:
+            j += 1
+
+    return score
+
+
+
+
