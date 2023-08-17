@@ -29,6 +29,7 @@ dependencies = [
     "tqdm>=4.65.0",
     "lxml>=4.9.2",
     "chemparse",
+    "matplotlib",
 ]
 
 [project.urls]

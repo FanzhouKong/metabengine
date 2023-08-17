@@ -16,6 +16,15 @@ class MSData:
     """
     A class that models a single file (mzML or mzXML) and
     processes the raw data.
+
+    Attributes
+    ----------------------------------------------------------
+    scans: list, a list of Scan objects
+    ms1_rt_seq: numpy array, retention times of all MS1 scans
+    bpc_int: numpy array, intensity of the BPC
+    rois: list, a list of ROI objects
+    rois_mz_seq: numpy array, m/z of all ROIs
+    params: Params object, a Params object that contains the parameters
     """
 
 
@@ -258,7 +267,10 @@ class MSData:
         """
 
         # 1. sort ROI by m/z
-        self.rois.sort(key=lambda x: x.mz)
+        self.rois_mz_seq = np.array([roi.mz for roi in self.rois])
+        order = np.argsort(self.rois_mz_seq)
+        self.rois = [self.rois[i] for i in order]
+        self.rois_mz_seq = self.rois_mz_seq[order]
 
         for roi in self.rois:
             # 1. find roi quality by length
