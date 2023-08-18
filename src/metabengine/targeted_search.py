@@ -9,7 +9,7 @@ from .params import Params
 import numpy as np
 
 
-def target_search(d, targets, mz_tol=0.01, rt_tol=0.5):
+def target_search(d, targets, mz_tol=0.01, rt_tol=0.3, method=None):
     """
     A function to search for a feature in a targeted manner.
 
@@ -29,7 +29,8 @@ def target_search(d, targets, mz_tol=0.01, rt_tol=0.5):
             'retention_time': [{
                 'method': '5_min',
                 'rt': 0.0
-            },]
+            },],
+            'blank_int_seq': np.array([100.0, 200.0]),
         }
     """
 
@@ -37,9 +38,29 @@ def target_search(d, targets, mz_tol=0.01, rt_tol=0.5):
 
     for target in targets:
         mzs = np.array(target['common_adducts_mz'])
+        rt = None
 
+        # check if the retention time of the specified method has been specified.
+        if method is not None and 'retention_time' in target.keys():
+            for item in target['retention_time']:
+                if item['method'] == method:
+                    rt = item['rt']
+                    break
+        
         for mz in mzs:
-            pass
+            matched_idx = np.isclose(d.rois_mz_seq, mz, atol=mz_tol).nonzero()[0]
+            if len(matched_idx) == 0:
+                continue
+
+            if rt is not None:
+                matched_idx = np.array([idx for idx in matched_idx if abs(d.rois[idx].rt - rt) < rt_tol])
+            
+            if len(matched_idx) == 0:
+                continue
+
+            # if there are multiple matched rois, choose 
+
+
 
     
 

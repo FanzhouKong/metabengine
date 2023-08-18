@@ -34,3 +34,10 @@ dependencies = [
 
 [project.urls]
 "Homepage" = "https://github.com/Waddlessss/metabengine"
+
+[tool.setuptools.packages.find]
+namespaces = true
+where = ["src"]
+
+[tool.setuptools.package-data]
+"metabengine.data" = ["*.json"]

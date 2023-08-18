@@ -357,9 +357,9 @@ class MSData:
         df.to_csv(path, index=False)
     
 
-    def get_eic_data(self, mz, rt, mz_tol=0.005):
-        rt_start = rt - 1.0
-        rt_end = rt + 1.0
+    def get_eic_data(self, mz, rt, mz_tol=0.005, rt_tol=1.0):
+        rt_start = rt - rt_tol
+        rt_end = rt + rt_tol
         
         eic_int_seq = np.array([])
         eic_rt_seq = np.array([])
