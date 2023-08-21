@@ -20,7 +20,7 @@ class Params:
         # Need to be specified by the user
         self.rt_range = np.array([0, np.inf], dtype=float)   # in minute
         self.proj_dir = None    # Project directory, character string
-        self.ms2_sim_tol = 0.75  # MS2 similarity tolerance
+        self.ms2_sim_tol = 0.6  # MS2 similarity tolerance
         self.mode = "dda"   # Acquisition mode, "dda", "dia", or "full_scan"
         self.ion_mode = "pos"   # Ionization mode, "pos", "neg" or "mixed"
 
@@ -33,6 +33,12 @@ class Params:
         # Constant
         self.roi_gap = 2
         self.min_ion_num = 5
+
+        # Alignment parameters
+        self.align_mz_tol_ms1 = 0.01
+        self.align_mz_tol_ms2 = 0.02
+        self.align_rt_tol = 0.3
+
     
 
     def estimate_params(self, d, estimate_mz_tol=True, estimate_cycle_time=True, estimate_int_tol=True):
@@ -76,9 +82,9 @@ class Params:
                     highest_int = int_highest_int
             mz_seq = d.get_eic_data(mz=wanted_mz, rt=wanted_rt, mz_tol=0.005, rt_tol=1.0)[2]
             mz_seq = mz_seq[mz_seq > 0]
-            if np.std(mz_seq) * 5 < 0.002:
-                self.mz_tol_ms1 = 0.002
-                self.mz_tol_ms2 = 0.004
+            if np.std(mz_seq) * 5 < 0.005:
+                self.mz_tol_ms1 = 0.005
+                self.mz_tol_ms2 = 0.005
             else:
                 self.mz_tol_ms1 = np.std(mz_seq) * 5
                 self.mz_tol_ms2 = 2 * self.mz_tol_ms1
@@ -106,16 +112,3 @@ class Params:
         print("Acquisition mode:", self.mode)
         print("Retention time range:", self.rt_range)
         print("Project directory:", self.proj_dir)
-    
-
-class Cross_file_params:
-    """
-    A class to store the parameters for multiple files.
-    """
-
-    def __init__(self):
-
-        self.mz_tol_ms1 = 0.01
-        self.mz_tol_ms2 = 0.02
-
-        self.rt_tol = 0.3

@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-def alignement(feature_list, d, cross_file_params):
+def alignement(feature_list, d):
     """
     A function to correct the retention time (RT) of the MS data to be aligned.
 
@@ -17,9 +17,10 @@ def alignement(feature_list, d, cross_file_params):
         A list of features to be aligned.
     d: MSData
         The MS data to be aligned.
-    Cross_file_params: Cross_file_params object
-        The parameters for data alignment.
     """
+
+    d.rois_mz_seq = np.array([roi.mz for roi in d.rois])
+    d.rois_rt_seq = np.array([roi.rt for roi in d.rois])
 
     # Initiate the aligned features using the first MS data if feature_list is empty
     if len(feature_list) == 0:
@@ -37,7 +38,7 @@ def alignement(feature_list, d, cross_file_params):
 
     # If feature_list is not empty, align the MS data to the existing features by targeted search
     for feat in tqdm(feature_list):
-        roi = find_roi_from_data(feat, d, cross_file_params)
+        roi = find_roi_from_data(feat, d)
 
         if roi is not None:
             feat.extend_feat(roi)
@@ -157,7 +158,7 @@ class AlignedFeature:
         self.best_ms2 = self.ms2_seq[np.argmax(total_ints)]
 
 
-def find_roi_from_data(feat, d, cross_file_params):
+def find_roi_from_data(feat, d):
     """
     A function to find the feature from the MS data.
 
@@ -167,28 +168,75 @@ def find_roi_from_data(feat, d, cross_file_params):
         The feature to be found.
     d: MSData
         The MS data to be searched.
-    cross_file_params: Cross_file_params object
-        The parameters for data alignment.
     """
 
     idx = None
-    min_rt_diff = np.inf
 
-    for i, roi in enumerate(d.rois):
-        mz_diff = roi.mz - feat.mz
-        if mz_diff + cross_file_params.mz_tol_ms1 < 0:
-            continue
-        elif mz_diff - cross_file_params.mz_tol_ms1 > 0:
-            break
-
-        rt_diff = np.abs(roi.rt - feat.rt)
-        if rt_diff < cross_file_params.rt_tol:
-            if rt_diff < min_rt_diff:
-                idx = i
-                min_rt_diff = rt_diff
-    
-    if idx is None:
+    idxes = np.where(np.logical_and(np.abs(d.rois_mz_seq-feat.mz) < d.params.align_mz_tol_ms1, np.abs(d.rois_rt_seq-feat.rt) < d.params.align_rt_tol))[0]
+    if len(idxes) == 0:
         return None
+    
+    int_seq = np.array([d.rois[i].peak_height for i in idxes])
+    
+    idx = idxes[np.argmax(int_seq)]
+
+    d.rois_mz_seq = np.delete(d.rois_mz_seq, idx)
+    d.rois_rt_seq = np.delete(d.rois_rt_seq, idx)
     
     # remove the ROI from the MS data
     return d.rois.pop(idx)
+
+
+
+
+
+
+
+
+
+# Back up
+# def alignement(feature_list, d, cross_file_params):
+#     """
+#     A function to correct the retention time (RT) of the MS data to be aligned.
+
+#     Parameters
+#     ----------------------------------------------------------
+#     feature_list: list
+#         A list of features to be aligned.
+#     d: MSData
+#         The MS data to be aligned.
+#     Cross_file_params: Cross_file_params object
+#         The parameters for data alignment.
+#     """
+
+#     # Initiate the aligned features using the first MS data if feature_list is empty
+#     if len(feature_list) == 0:
+#         for roi in d.rois:
+#             aligned_feature = AlignedFeature()
+#             aligned_feature.initiate_feat(roi)
+#             feature_list.append(aligned_feature)
+
+#         # sort features in feature list by peak height from high to low
+#         feature_list.sort(key=lambda x: x.height_seq[0], reverse=True)
+
+#         return None
+    
+#     file_count = len(feature_list[0].mz_seq)
+
+#     # If feature_list is not empty, align the MS data to the existing features by targeted search
+#     for feat in tqdm(feature_list):
+#         roi = find_roi_from_data(feat, d, cross_file_params)
+
+#         if roi is not None:
+#             feat.extend_feat(roi)
+#         else:
+#             feat.extend_gap()
+    
+#     # For newly detected features, add them to the feature list
+#     for roi in d.rois:
+#         aligned_feature = AlignedFeature()
+#         aligned_feature.initiate_feat(roi)
+#         aligned_feature.extend_gap_front(file_count)
+#         feature_list.append(aligned_feature)
+    
+#     feature_list.sort(key=lambda x: x.height_seq[0], reverse=True)

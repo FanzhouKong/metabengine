@@ -39,6 +39,8 @@ class MSData:
         self.bpc_int = np.array([]) # Intensity of the BPC
         self.rois = []  # A list of ROIs
         self.params = None  # A Params object
+        self.rois_mz_seq = None
+        self.rois_rt_seq = None
 
 
     def read_raw_data(self, file_name, params):
@@ -268,6 +270,7 @@ class MSData:
 
         # 1. sort ROI by m/z
         self.rois_mz_seq = np.array([roi.mz for roi in self.rois])
+        self.rois_rt_seq = np.array([roi.rt for roi in self.rois])
         order = np.argsort(self.rois_mz_seq)
         self.rois = [self.rois[i] for i in order]
         self.rois_mz_seq = self.rois_mz_seq[order]

@@ -4,7 +4,7 @@
 
 # Import modules
 from . import raw_data_utils as raw
-from .params import Params, Cross_file_params
+from .params import Params
 from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope
 from .alignment import alignement
@@ -35,16 +35,14 @@ def feat_detection(file_name, pred_quality_NN=False, anno_isotope=False, output_
     return d
 
 
-def process_files(file_names):
+def process_files(file_names, output_single_file=False):
 
     feature_list = []
 
-    cross_file_params = Cross_file_params()
-
     for file_name in file_names:
-        d = feat_detection(file_name)
+        d = feat_detection(file_name, output_single_file=output_single_file)
         print('Running alignment on: ', file_name)
-        alignement(feature_list, d, cross_file_params)
+        alignement(feature_list, d)
     
     # choose the best MS2 for each feature
     for feat in feature_list:
