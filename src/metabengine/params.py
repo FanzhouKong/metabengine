@@ -59,39 +59,35 @@ class Params:
             An MSData object that contains the MS data.
         """
 
-        wanted_mz_seq = []
         wanted_mz = 0.0
+        wanted_rt = 0.0
         highest_int = 0.0
 
         int_ms1 = np.array([], dtype=int)
 
-        for i in d.ms1_idx:
-            scan = d.scans[i]
-            if estimate_mz_tol:
-                highest_mz_temp = scan.mz_seq[np.argmax(scan.int_seq)]
-                highest_int_temp = np.max(scan.int_seq)
-                if abs(highest_mz_temp - wanted_mz) > 0.1:
-                    if highest_int_temp > highest_int:
-                        wanted_mz_seq = [highest_mz_temp]
-                        wanted_mz = highest_mz_temp
-                        highest_int = highest_int_temp
-                else:
-                    wanted_mz_seq.append(highest_mz_temp)
-                    if highest_int_temp > highest_int:
-                        wanted_mz = highest_mz_temp
-                        highest_int = highest_int_temp
+        if estimate_mz_tol:
+            for i in d.ms1_idx:
+                scan = d.scans[i]
+                mz_highest_int = scan.mz_seq[np.argmax(scan.int_seq)]
+                int_highest_int = np.max(scan.int_seq)
+                if int_highest_int > highest_int:
+                    wanted_mz = mz_highest_int
+                    wanted_rt = scan.rt
+                    highest_int = int_highest_int
+            mz_seq = d.get_eic_data(mz=wanted_mz, rt=wanted_rt, mz_tol=0.005, rt_tol=1.0)[2]
+            mz_seq = mz_seq[mz_seq > 0]
+            if np.std(mz_seq) * 5 < 0.002:
+                self.mz_tol_ms1 = 0.002
+                self.mz_tol_ms2 = 0.004
+            else:
+                self.mz_tol_ms1 = np.std(mz_seq) * 5
+                self.mz_tol_ms2 = 2 * self.mz_tol_ms1
             
-            if estimate_int_tol:
+        if estimate_int_tol:
+            for i in d.ms1_idx:
+                scan = d.scans[i]
                 # get the last 5% of the lowest intensity
                 int_ms1 = np.append(int_ms1, np.sort(scan.int_seq)[:(int(len(scan.int_seq)*0.05)+1)])
-        
-        if estimate_mz_tol:
-            # Estimate the m/z tolerance
-            wanted_mz_seq = np.array(wanted_mz_seq)
-            self.mz_tol_ms1 = np.std(wanted_mz_seq) * 5
-            self.mz_tol_ms2 = 2 * self.mz_tol_ms1
-
-        if estimate_int_tol:
             # Estimate the intensity tolerance
             self.int_tol = np.mean(int_ms1) + 3 * np.std(int_ms1)
 

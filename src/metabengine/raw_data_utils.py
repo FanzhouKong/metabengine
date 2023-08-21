@@ -363,6 +363,7 @@ class MSData:
         
         eic_int_seq = np.array([])
         eic_rt_seq = np.array([])
+        eic_mz_seq = np.array([])
 
         for scan in self.scans:
             if scan.rt > rt_start:
@@ -371,12 +372,14 @@ class MSData:
                     mz_diff = np.abs(scan.mz_seq - mz)
                     if np.min(mz_diff) < mz_tol:
                         eic_int_seq = np.append(eic_int_seq, scan.int_seq[np.argmin(mz_diff)])
+                        eic_mz_seq = np.append(eic_mz_seq, scan.mz_seq[np.argmin(mz_diff)])
                     else:
                         eic_int_seq = np.append(eic_int_seq, 0)
+                        eic_mz_seq = np.append(eic_mz_seq, -1)
             if scan.rt > rt_end:
                 break
         
-        return [eic_int_seq, eic_rt_seq]
+        return [eic_rt_seq, eic_int_seq, eic_mz_seq]
 
 
     def find_roi_by_mz(self, mz, mz_tol=0.005):
