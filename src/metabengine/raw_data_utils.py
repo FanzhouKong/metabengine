@@ -323,9 +323,16 @@ class MSData:
     def plot_bpc(self, output=False):
         """
         Function to plot base peak chromatogram.
+
+        Parameters
+        ----------------------------------------------------------
+        output: str
+            Output file name. If not specified, the plot will be shown.
         """
 
         plt.figure(figsize=(10, 3))
+        plt.rcParams['font.size'] = 14
+        plt.rcParams['font.family'] = 'Arial'
         plt.plot(self.ms1_rt_seq, self.bpc_int, linewidth=1, color="black")
         plt.xlabel("Retention Time (min)", fontsize=18, fontname='Arial')
         plt.ylabel("Intensity", fontsize=18, fontname='Arial')
@@ -360,29 +367,25 @@ class MSData:
         df.to_csv(path, index=False)
     
 
-    def get_eic_data(self, mz, rt, mz_tol=0.005, rt_tol=1.0):
-        rt_start = rt - rt_tol
-        rt_end = rt + rt_tol
+    def get_eic_data(self, target_mz, mz_tol=0.005, rt_range=[0, np.inf]):
         
-        eic_int_seq = np.array([])
-        eic_rt_seq = np.array([])
-        eic_mz_seq = np.array([])
+        eic_rt = np.array([])
+        eic_int = np.array([])
 
-        for scan in self.scans:
-            if scan.rt > rt_start:
-                if scan.level == 1:
-                    eic_rt_seq = np.append(eic_rt_seq, scan.rt)
-                    mz_diff = np.abs(scan.mz_seq - mz)
-                    if np.min(mz_diff) < mz_tol:
-                        eic_int_seq = np.append(eic_int_seq, scan.int_seq[np.argmin(mz_diff)])
-                        eic_mz_seq = np.append(eic_mz_seq, scan.mz_seq[np.argmin(mz_diff)])
-                    else:
-                        eic_int_seq = np.append(eic_int_seq, 0)
-                        eic_mz_seq = np.append(eic_mz_seq, -1)
-            if scan.rt > rt_end:
+        for i in self.ms1_idx:
+            if self.scans[i].rt > rt_range[0]:
+                mz_diff = np.abs(self.scans[i].mz_seq - target_mz)
+                if np.min(mz_diff) < mz_tol:
+                    eic_rt = np.append(eic_rt, self.scans[i].rt)
+                    eic_int = np.append(eic_int, self.scans[i].int_seq[np.argmin(mz_diff)])
+                else:
+                    eic_rt = np.append(eic_rt, self.scans[i].rt)
+                    eic_int = np.append(eic_int, 0)
+
+            if self.scans[i].rt > rt_range[1]:
                 break
         
-        return [eic_rt_seq, eic_int_seq, eic_mz_seq]
+        return eic_rt, eic_int
 
 
     def find_roi_by_mz(self, mz, mz_tol=0.005):
@@ -404,22 +407,11 @@ class MSData:
         """
 
         # get the eic data
-        eic_int = np.array([])
-        eic_rt = np.array([])
-        for scan in self.scans:
-            if scan.rt > rt_range[0]:
-                if scan.level == 1:
-                    mz_diff = np.abs(scan.mz_seq - target_mz)
-                    if np.min(mz_diff) < mz_tol:
-                        eic_rt = np.append(eic_rt, scan.rt)
-                        eic_int = np.append(eic_int, scan.int_seq[np.argmin(mz_diff)])
-                    else:
-                        eic_rt = np.append(eic_rt, scan.rt)
-                        eic_int = np.append(eic_int, 0)
-            if scan.rt > rt_range[1]:
-                break
+        eic_rt, eic_int = self.get_eic_data(target_mz, mz_tol=mz_tol, rt_range=rt_range)
 
         plt.figure(figsize=(10, 3))
+        plt.rcParams['font.size'] = 14
+        plt.rcParams['font.family'] = 'Arial'
         plt.plot(eic_rt, eic_int, linewidth=1, color="black")
         plt.xlabel("Retention Time (min)", fontsize=18, fontname='Arial')
         plt.ylabel("Intensity", fontsize=18, fontname='Arial')
