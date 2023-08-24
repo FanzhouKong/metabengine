@@ -5,36 +5,56 @@
 # Workflow
 # 1. Load internal standard library with no retention time and MS/MS spectra
 # 2. Get all method blank data
-# 3. Run peak picking of method blank data
-# 4. Targeted search for internal standards in method blank data
-# 5. For observed internal standards, get retention time and MS/MS spectra, and add to the library (project-specific)
-# 6. Generate aligned feature table for method blank data
-# 7. Get all pooled quality control sample data
-# 8. Run peak picking of pooled QC and correct retention time using internal standards
-# 8. Align pooled QCs
-# 9. Get all sample data
-# 10. Run peak picking of sample data and correct retention time using internal standards
-# 11. Align sample data
+# 3. Targeted search for internal standards in method blank data
+# 4. For each file (Pooled QC to real samples to method blanks), run
+#    Peak picking, find internal standards, run retention time correction, run m/z correction, run alignment
 
 # Import modules
 import json
 import os
-from . import read_raw_file_to_obj
+from . import read_raw_file_to_obj, feat_detection
 from .params import Params
 import numpy as np
 
-def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False):
+def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False):
 
     # create three folders for method blank, pooled QC, and sample data
     if create_sub_folders==True:
         _create_folder(data_dir)
+        _ = input("Please put method blank data in the method_blank folder, pooled QC data in the pooled_qc folder, and sample data in the sample folder. Press Enter to continue...")
     
     # Load internal standard library
     db = load_internal_standard_library(sample_type, ion_mode)
 
     # Get all method blank data
-    mb_file_names = get_method_blank_data(data_dir)
-    select_istd_from_mb(mb_file_names, db)
+    mb_file_names = get_data_name(data_dir, "method_blank")
+    # Select internal standards from method blank data as chemical anchors
+    istd_selected = select_istd_from_mb(mb_file_names, db)
+
+    # Process each file from pooled QC to real samples to method blanks
+    qc_file_names = get_data_name(data_dir, "pooled_qc")
+    sample_file_names = get_data_name(data_dir, "sample")
+
+    full_file_names = qc_file_names + sample_file_names + mb_file_names
+
+    # create a list for aligned features
+    feature_list = []
+
+    for file_name in full_file_names:
+        d = feat_detection(file_name, output_single_file=output_single_file)
+
+        # find the selected anchors (internal standards) in the file
+        
+        print('Running alignment on: ', file_name)
+        alignement(feature_list, d)
+    
+    # choose the best MS2 for each feature
+    for feat in feature_list:
+        feat.choose_best_ms2()
+    
+    return feature_list
+
+
 
 
 
@@ -71,7 +91,7 @@ def load_internal_standard_library(sample_type, ion_mode):
         return json.load(f)
 
 
-def get_method_blank_data(data_dir):
+def get_data_name(data_dir, sub_folder=None):
     """
     Get all method blank data.
 
@@ -79,9 +99,12 @@ def get_method_blank_data(data_dir):
     ----------
     data_dir : str
         Path to the directory containing all data files.
+    sub_folder : str
+        Name of the sub folder containing method blank data.
     """
 
-    subpath = os.path.join(data_dir, "method_blank")
+    if sub_folder:
+        subpath = os.path.join(data_dir, sub_folder)
 
     # Get all files in the directory ending with ".mzML" or ".mzXML"
     files = [f for f in os.listdir(subpath) if f.endswith(".mzML") or f.endswith(".mzXML")]
@@ -105,7 +128,7 @@ def _create_folder(data_dir):
     os.makedirs(os.path.join(data_dir, "sample"))
 
 
-def select_istd_from_mb(mb_file_names, db)
+def select_istd_from_mb(mb_file_names, db):
     """
     Select internal standards from method blank data as chemical anchors.
 
@@ -113,6 +136,7 @@ def select_istd_from_mb(mb_file_names, db)
     1. Detected in all blank files
     2. No other isobaric compounds with intensity higher than 20% of the highest intensity
     3. Have MS/MS spectra if the data acquisiton mode is data-dependent acquisition (DDA)
+    4. scan number >=5
 
     Parameters
     ----------
@@ -124,19 +148,26 @@ def select_istd_from_mb(mb_file_names, db)
 
     matched_multi_files = []
     target_mzs = []
+    # target_rts = []
 
     for istd in db:
         target_mzs.append(istd['common_adducts_mz'][istd['common_adducts'].index(istd["preferred_adduct"])])
+        # target_rts.append(istd['rt'])
 
     for fn in mb_file_names:
+
+        # read raw file
         d = read_raw_file_to_obj(fn)
+
+        # estimate intensity tolerance
         params = Params()
         params.estimate_params(d, estimate_mz_tol=False, estimate_cycle_time=False, estimate_int_tol=True)
-        int_tol = params.int_tol
+
+        # record whether the internal standard is detected in the file
         matched = [False] * len(target_mzs)
         
         for i, mz in enumerate(target_mzs):
-            _, eic_int = d.get_eic_data(mz, 0.01)
+            _, eic_int = d.get_eic_data(target_mz=mz, mz_tol=0.01, rt_range=[0, np.inf])
             
             # the largest intensity is above threshold (i.e. distinguishable from noise)
             if np.max(eic_int) > params.int_tol:
@@ -149,16 +180,9 @@ def select_istd_from_mb(mb_file_names, db)
 
     # get the internal standards that are detected in all blank files
     matched_multi_files = np.array(matched_multi_files)
-    matched_multi_files = matched_multi_files.sum(axis=0)
-    matched_multi_files = matched_multi_files == len(mb_file_names)
-    target_mzs = np.array(target_mzs)
-    target_mzs = target_mzs[matched_multi_files]
-
-    # get the internal standards that have MS/MS spectra
-    target_mzs = target_mzs[db['msms'] == True]
-    
+    id = np.where(matched_multi_files.sum(axis=0) == len(mb_file_names))[0]
+    return [db[i] for i in id] 
                         
-
 
 def _single_max(a):
     """
