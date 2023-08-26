@@ -398,27 +398,7 @@ class MSData:
                 print("------------------")
                 rois.append(roi)
 
-        return rois
-    
-
-    def find_itsd_from_rois(self, istd, mz_tol=0.01, rt_tol=0.5, dp_tol=0.7):
-        """
-        A function designed for LC-Binbase workflow. Find the ROI representing
-        the specified internal standard by m/z, retention time and MS/MS spectrum.
-
-        Parameters
-        ----------------------------------------------------------
-        istd: dict
-            A dictionary that contains the information of an internal standard.
-        mz_tol: float
-            m/z tolerance.
-        rt_tol: float
-            Retention time tolerance.
-        dp_tol: float
-            Dot product tolerance.
-        """
-
-        
+        return rois     
     
 
     def plot_eic(self, target_mz, mz_tol=0.005, rt_range=[0, np.inf], output=False):
