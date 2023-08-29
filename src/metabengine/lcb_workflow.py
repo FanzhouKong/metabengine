@@ -15,13 +15,18 @@ import os
 from . import read_raw_file_to_obj, feat_detection
 from .params import Params
 import numpy as np
+from scipy.interpolate import interp1d, splrep, BSpline
+from sklearn.linear_model import LinearRegression
+from .alignment import alignement
+import pandas as pd
 
-def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False):
+
+def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False, istd_interval=0.3, validation=False):
 
     # create three folders for method blank, pooled QC, and sample data
     if create_sub_folders==True:
         _create_folder(data_dir)
-        _ = input("Please put method blank data in the method_blank folder, pooled QC data in the pooled_qc folder, and sample data in the sample folder. Press Enter to continue...")
+        _ = input("Please put method blank data in the method_blank folder, pooled QC data in the pooled_qc folder, and sample data in the sample folder. Press any key to continue...")
     
     # Load internal standard library
     db = load_internal_standard_library(sample_type, ion_mode)
@@ -30,6 +35,24 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     mb_file_names = get_data_name(data_dir, "method_blank")
     # Select internal standards from method blank data as chemical anchors
     istd_selected = select_istd_from_mb(mb_file_names, db)
+
+    # sort the selected internal standards by retention time
+    istd_selected = sorted(istd_selected, key=lambda x: x['rt'])
+
+    # split the selected internal standards to training set and validation set
+    istd_training = [istd_selected[0], istd_selected[-1]]
+    istd_validation = []
+
+    rt_tmp = 0.0
+    for i in range(1, len(istd_selected)-1):
+        if istd_selected[i]['rt'] - rt_tmp > istd_interval:
+            istd_training.append(istd_selected[i])
+            rt_tmp = istd_selected[i]['rt']
+        else:
+            istd_validation.append(istd_selected[i])
+    
+    print("number of internal standards in training set: ", len(istd_training))
+    print("number of internal standards in validation set: ", len(istd_validation))
 
     # Process each file from pooled QC to real samples to method blanks
     qc_file_names = get_data_name(data_dir, "pooled_qc")
@@ -40,34 +63,67 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     # create a list for aligned features
     feature_list = []
 
+    # create lists to store the retention time and m/z of the internal standards in the valuation set if run validation
+    if validation:
+        rt_val_before_correct = []
+        mz_val_before_correct = []
+        rt_val_after_correct = []
+        mz_val_after_correct = []
+
     for file_name in full_file_names:
         # feature detection
         d = feat_detection(file_name, output_single_file=output_single_file)
 
         # find the selected anchors (internal standards) in the file by m/z, rt, intensity, and MS/MS spectra (if available)
-        matched_mz, matched_rt = find_itsd_from_rois(d, istd_selected)
+        matched_mzs, matched_rts = find_itsd_from_rois(d, istd_training)
 
-        
+        # if run validation, find the corrected m/z and retention time for the internal standards in the validation set
+        if validation:
+            matched_mzs_val, matched_rts_val = find_itsd_from_rois(d, istd_validation)
+            rt_val_before_correct.append(matched_mzs_val)
+            mz_val_before_correct.append(matched_rts_val)
 
+        # correct retention time
+        correct_retention_time(d, matched_rts, istd_training)
 
+        # correct m/z
+        correct_mz(d, matched_mzs, istd_training)
 
-
-
+        # if run validation, find the corrected m/z and retention time for the internal standards in the validation set
+        if validation:
+            matched_mzs_val, matched_rts_val = find_itsd_from_rois(d, istd_validation)
+            rt_val_after_correct.append(matched_mzs_val)
+            mz_val_after_correct.append(matched_rts_val)
+            
+        # alignment
         print('Running alignment on: ', file_name)
-        # alignement(feature_list, d)
+        alignement(feature_list, d)
     
     # choose the best MS2 for each feature
     for feat in feature_list:
         feat.choose_best_ms2()
     
+    # output the validation results if run validation
+    if validation:
+        before_correct_result = validate_istd(istd_validation, mz_val_before_correct, rt_val_before_correct)
+        after_correct_result = validate_istd(istd_validation, mz_val_after_correct, rt_val_after_correct)
+
+        # create a pandas dataframe to store the validation results
+        validation_result = pd.DataFrame({
+            "mz_MAE_before_correct": before_correct_result['mz_MAE'],
+            "rt_MAE_before_correct": before_correct_result['rt_MAE'],
+            "mz_MAXAE_before_correct": before_correct_result['mz_MAXAE'],
+            "rt_MAXAE_before_correct": before_correct_result['rt_MAXAE'],
+            "mz_MAE_after_correct": after_correct_result['mz_MAE'],
+            "rt_MAE_after_correct": after_correct_result['rt_MAE'],
+            "mz_MAXAE_after_correct": after_correct_result['mz_MAXAE'],
+            "rt_MAXAE_after_correct": after_correct_result['rt_MAXAE']
+        })
+
+        # save the validation results to a csv file
+        validation_result.to_csv(os.path.join(data_dir, "validation_result.csv"), index=False)
+    
     return feature_list
-
-
-
-
-
-
-
 
 
 def load_internal_standard_library(sample_type, ion_mode):
@@ -160,8 +216,6 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
     """
 
     matched_multi_files = []
-    target_mzs = []
-    # target_rts = []
 
     target_mzs = [i['preferred_mz'] for i in db]
     target_rts = [i['rt'] for i in db]
@@ -174,6 +228,8 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
     
     failed = []
 
+    int_multi_files = []
+
     for fn in mb_file_names:
 
         # read raw file
@@ -185,6 +241,7 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
 
         # record whether the internal standard is detected in the file
         matched = [False] * len(target_mzs)
+        int_single_file = [0.0] * len(target_mzs)
         
         for i in range(len(target_mzs)):
 
@@ -200,12 +257,18 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
                 eic_int[eic_int < np.max(eic_int) * 0.2] = 0
                 if _single_max(eic_int):
                     matched[i] = True
+                    int_single_file[i] = np.max(eic_int)
         matched_multi_files.append(matched)
+        int_multi_files.append(int_single_file)
 
     # get the internal standards that are detected in all blank files
     matched_multi_files = np.array(matched_multi_files)
     id = np.where(matched_multi_files.sum(axis=0) == len(mb_file_names))[0]
-    return [db[i] for i in id] 
+
+    for i in id:
+        db[i]['blank_int'] = np.mean([int_multi_files[j][i] for j in range(len(mb_file_names))])
+
+    return [db[i] for i in id]
                         
 
 def _single_max(a):
@@ -252,6 +315,10 @@ def find_itsd_from_rois(d, istds, mz_tol=0.01, rt_tol=1.0, dp_tol=0.7, match_ms2
     2. A list of retention times of matched internal standards.
     """
 
+    matched_mzs = []
+    matched_rts = []
+
+
     # ROIs have been sorted by m/z
 
     for istd in istds:
@@ -259,9 +326,176 @@ def find_itsd_from_rois(d, istds, mz_tol=0.01, rt_tol=1.0, dp_tol=0.7, match_ms2
         rt = istd['rt']
 
         matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < mz_tol, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
+
+        if len(matched_idx) == 0:
+            matched_mzs.append(None)
+            matched_rts.append(None)
+            continue
+        
+        # if match by MS/MS spectra
+        if match_ms2:
+            pass
+        
+        if len(matched_idx) == 1:
+            matched_mzs.append(d.rois_mz_seq[matched_idx[0]])
+            matched_rts.append(d.rois_rt_seq[matched_idx[0]])
+            continue   
+        
+        # if there are multiple ROIs matched, choose the one with the cloest intensity
+        if len(matched_idx) > 1:
+            roi_int = [d.rois.peak_height[i] for i in matched_idx]
+            idx = np.argmin(np.abs(roi_int - istd['blank_int']))
+            matched_mzs.append(d.rois_mz_seq[matched_idx[idx]])
+            matched_rts.append(d.rois_rt_seq[matched_idx[idx]])
     
-           
+    matched_mzs = np.array(matched_mzs, dtype=np.float64)
+    matched_rts = np.array(matched_rts, dtype=np.float64)
+
+    return matched_mzs, matched_rts
 
 
+def correct_retention_time(d, matched_rts, istd_training, method="smooth_spline"):
+    """
+    Correct retention time for each ROI using the matched internal standards.
+    
+    Parameters
+    ----------------------------------------------------------
+    d: MSData object
+        Raw data object after feature detection.
+    matched_rts: list
+        List of retention times of matched internal standards.
+    istd_selected: list
+        List of selected internal standards.
+    method: str
+        "smooth_spline": smooth spline interpolation
+        "linear_interp": linear interpolation
+        "linear_regression": linear regression
+        "polynomial_regression": polynomial regression
+        
+    Utilities
+    ----------------------------------------------------------
+    Change the retention time of each ROI in d
+    """
+
+    # data retention time
+    x = matched_rts
+    # reference retention time
+    y = np.array([i['rt'] for i in istd_training], dtype=np.float64)
+
+    if method=="smooth_spline":
+        tck = splrep(x, y, s=len(x))
+        d.rois_rt_seq = BSpline(*tck)(d.rois_rt_seq)
+
+    if method=="linear_interp":
+        f = interp1d(x, y)
+        d.rois_rt_seq = f(d.rois_rt_seq)
+
+    if method=="linear_regression":
+        reg = LinearRegression().fit(x.reshape(-1, 1), y)
+        d.rois_rt_seq = reg.predict(d.rois_rt_seq.reshape(-1, 1))
+
+    if method=="polynomial_regression":
+        reg = LinearRegression().fit(np.vstack([x, x**2, x**3]).T, y)
+        d.rois_rt_seq = reg.predict(np.vstack([d.rois_rt_seq, d.rois_rt_seq**2, d.rois_rt_seq**3]).T)
+
+    # Change the retention time of each ROI in d
+    for i in range(len(d.rois)):
+        d.rois[i].rt = d.rois_rt_seq[i]     
+
+
+def correct_mz(d, matched_mzs, istd_training, method="smooth_spline"):
+    """
+    Correct m/z for each ROI using the matched internal standards.
+
+    Parameters
+    ----------------------------------------------------------
+    d: MSData object
+        Raw data object after feature detection.
+    matched_mzs: list
+        List of m/z values of matched internal standards.
+    istd_selected: list
+        List of selected internal standards.
+    method: str 
+        "smooth_spline": smooth spline interpolation
+        "linear_interp": linear interpolation
+        "linear_regression": linear regression
+        "polynomial_regression": polynomial regression
+
+    Utilities
+    ----------------------------------------------------------
+    Change the m/z of each ROI in d
+    """
+
+    # data m/z
+    x = matched_mzs
+    # reference m/z
+    y = np.array([i['preferred_mz'] for i in istd_training], dtype=np.float64)
+
+    if method=="smooth_spline":
+        tck = splrep(x, y, s=len(x))
+        d.rois_mz_seq = BSpline(*tck)(d.rois_mz_seq)
+    
+    if method=="linear_interp":
+        f = interp1d(x, y)
+        d.rois_mz_seq = f(d.rois_mz_seq)
+
+    if method=="linear_regression":
+        reg = LinearRegression().fit(x.reshape(-1, 1), y)
+        d.rois_mz_seq = reg.predict(d.rois_mz_seq.reshape(-1, 1))
+
+    if method=="polynomial_regression":
+        reg = LinearRegression().fit(np.vstack([x, x**2, x**3]).T, y)
+        d.rois_mz_seq = reg.predict(np.vstack([d.rois_mz_seq, d.rois_mz_seq**2, d.rois_mz_seq**3]).T)
+
+    # Change the m/z of each ROI in d
+    for i in range(len(d.rois)):
+        d.rois[i].mz = d.rois_mz_seq[i]
+
+
+def validate_istd(istd_validation, mz_val, rt_val):
+    """
+    A function to validate the internal standards and generate a report.
+    Evaluation criteria:
+    1. median absolute error (MAE) of m/z
+    2. median absolute error (MAE) of retention time
+    3. maximum absolute error (MAXAE) of m/z
+    4. maximum absolute error (MAXAE) of retention time
+
+    Parameters
+    ----------
+    istd_validation : list
+        List of internal standards in the validation set.
+    mz_val : list
+        List of corrected m/z values of the internal standards in the validation set.
+    rt_val : list
+        List of corrected retention times of the internal standards in the validation set.
+    """
+
+    target_mzs = np.array([i['preferred_mz'] for i in istd_validation])
+    target_rts = np.array([i['rt'] for i in istd_validation])
+
+    mz_MAE = []
+    rt_MAE = []
+    mz_MAXAE = []
+    rt_MAXAE = []
+
+    # to make one row for each internal standard
+    mz_val = mz_val.T
+    rt_val = rt_val.T
+
+    for i in range(len(target_mzs)):
+        mz_MAE.append(np.median(np.abs(mz_val[i] - target_mzs[i])))
+        rt_MAE.append(np.median(np.abs(rt_val[i] - target_rts[i])))
+        mz_MAXAE.append(np.max(np.abs(mz_val[i] - target_mzs[i])))
+        rt_MAXAE.append(np.max(np.abs(rt_val[i] - target_rts[i])))
+
+    result = {
+        "mz_MAE": mz_MAE,
+        "rt_MAE": rt_MAE,
+        "mz_MAXAE": mz_MAXAE,
+        "rt_MAXAE": rt_MAXAE
+    }
+
+    return result
 
     
