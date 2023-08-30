@@ -41,12 +41,11 @@ class Params:
 
     
 
-    def estimate_params(self, d, estimate_mz_tol=True, estimate_cycle_time=True, estimate_int_tol=True):
+    def estimate_params(self, d, estimate_mz_tol=True, estimate_int_tol=True):
         """
         Function to estimate the parameters from MS data.
         The parameters to be estimated include:
             m/z tolerance: self.mz_tol_ms1, self.mz_tol_ms2
-            cycle time: self.cycle_time
             intensity tolerance: self.int_tol
 
         Method for estimating the parameters:
@@ -80,7 +79,7 @@ class Params:
                     wanted_mz = mz_highest_int
                     wanted_rt = scan.rt
                     highest_int = int_highest_int
-            mz_seq = d.get_eic_data(mz=wanted_mz, rt=wanted_rt, mz_tol=0.005, rt_tol=1.0)[2]
+            mz_seq = d.get_eic_data(target_mz=wanted_mz, mz_tol=0.005, rt_range=[wanted_rt-1.0, wanted_rt+1.0])[2]
             mz_seq = mz_seq[mz_seq > 0]
             if np.std(mz_seq) * 5 < 0.005:
                 self.mz_tol_ms1 = 0.005

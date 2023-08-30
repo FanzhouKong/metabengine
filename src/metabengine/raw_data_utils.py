@@ -274,6 +274,7 @@ class MSData:
         order = np.argsort(self.rois_mz_seq)
         self.rois = [self.rois[i] for i in order]
         self.rois_mz_seq = self.rois_mz_seq[order]
+        self.rois_rt_seq = self.rois_rt_seq[order]
 
         for roi in self.rois:
             # 1. find roi quality by length
@@ -371,6 +372,7 @@ class MSData:
         
         eic_rt = np.array([])
         eic_int = np.array([])
+        eic_mz = np.array([])
 
         for i in self.ms1_idx:
             if self.scans[i].rt > rt_range[0]:
@@ -378,14 +380,16 @@ class MSData:
                 if np.min(mz_diff) < mz_tol:
                     eic_rt = np.append(eic_rt, self.scans[i].rt)
                     eic_int = np.append(eic_int, self.scans[i].int_seq[np.argmin(mz_diff)])
+                    eic_mz = np.append(eic_mz, self.scans[i].mz_seq[np.argmin(mz_diff)])
                 else:
                     eic_rt = np.append(eic_rt, self.scans[i].rt)
-                    eic_int = np.append(eic_int, 0)
+                    eic_int = np.append(eic_int, 0.0)
+                    eic_mz = np.append(eic_mz, 0.0)
 
             if self.scans[i].rt > rt_range[1]:
                 break
         
-        return eic_rt, eic_int
+        return eic_rt, eic_int, eic_mz
 
 
     def find_roi_by_mz(self, mz, mz_tol=0.005):
@@ -407,7 +411,7 @@ class MSData:
         """
 
         # get the eic data
-        eic_rt, eic_int = self.get_eic_data(target_mz, mz_tol=mz_tol, rt_range=rt_range)
+        eic_rt, eic_int, _ = self.get_eic_data(target_mz, mz_tol=mz_tol, rt_range=rt_range)
 
         plt.figure(figsize=(10, 3))
         plt.rcParams['font.size'] = 14
@@ -423,6 +427,8 @@ class MSData:
             plt.close()
         else:
             plt.show()
+        
+        return eic_rt[np.argmax(eic_int)], np.max(eic_int)
         
     
     def find_ms2_by_mzrt(self, mz_target, rt_target, mz_tol=0.01, rt_tol=0.3, return_best=False):

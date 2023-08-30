@@ -22,6 +22,26 @@ import pandas as pd
 
 
 def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False, istd_interval=0.3, validation=False):
+    """
+    A function to run the data processing workflow by LC-Binbase.
+
+    Parameters
+    ----------
+    data_dir : str
+        Path to the directory containing all data files.
+    sample_type : str
+        Sample type, "lipidomics" or "metabolomics".
+    ion_mode : str
+        Ion mode, "positive" or "negative".
+    create_sub_folders : bool
+        Whether to create three folders for method blank, pooled QC, and sample data. Default is False.
+    output_single_file : bool
+        Whether to output a single file for each data file. Default is False.
+    istd_interval : float
+        Retention time interval for selecting internal standards. Default is 0.3.
+    validation : bool
+        Whether to run validation. Default is False.    
+    """
 
     # create three folders for method blank, pooled QC, and sample data
     if create_sub_folders==True:
@@ -30,6 +50,8 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     
     # Load internal standard library
     db = load_internal_standard_library(sample_type, ion_mode)
+
+    print(len(db), "internal standards loaded.")
 
     # Get all method blank data
     mb_file_names = get_data_name(data_dir, "method_blank")
@@ -40,7 +62,7 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     istd_selected = sorted(istd_selected, key=lambda x: x['rt'])
 
     # split the selected internal standards to training set and validation set
-    istd_training = [istd_selected[0], istd_selected[-1]]
+    istd_training = [istd_selected[0]]
     istd_validation = []
 
     rt_tmp = 0.0
@@ -50,6 +72,8 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
             rt_tmp = istd_selected[i]['rt']
         else:
             istd_validation.append(istd_selected[i])
+    
+    istd_training.append(istd_selected[-1])
     
     print("number of internal standards in training set: ", len(istd_training))
     print("number of internal standards in validation set: ", len(istd_validation))
@@ -102,6 +126,8 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     # choose the best MS2 for each feature
     for feat in feature_list:
         feat.choose_best_ms2()
+
+    return None
     
     # output the validation results if run validation
     if validation:
@@ -138,22 +164,25 @@ def load_internal_standard_library(sample_type, ion_mode):
         Ion mode, "positive" or "negative".    
     """
 
-    if sample_type == "lipidomics":
-        if ion_mode == "positive":
+    if sample_type.lower() == "lipidomics":
+        if ion_mode.lower() == "positive":
             fn = "lipid_istd_pos.json"
-        elif ion_mode == "negative":
+        elif ion_mode.lower() == "negative":
             fn = "lipid_istd_neg.json"
         
-    elif sample_type == "metabolomics":
-        if ion_mode == "positive":
+    elif sample_type.lower() == "metabolomics":
+        if ion_mode.lower() == "positive":
             fn = "metabolite_istd_pos.json"
-        elif ion_mode == "negative":
+        elif ion_mode.lower() == "negative":
             fn = "metabolite_istd_neg.json"
     data_path = os.path.join(os.path.dirname(__file__), 'data', fn)
 
     with open(data_path, 'r') as f:
-        return json.load(f)
+        tmp = json.load(f)
 
+    db = [i for i in tmp if i['rt'] == i['rt']]
+
+    return db
 
 def get_data_name(data_dir, sub_folder=None):
     """
@@ -197,8 +226,7 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
     Select internal standards from method blank data as chemical anchors.
 
     The internal standards should be selected based on the following criteria:
-    1. Detected in all blank files by matching the m/z, retention time, and MS/MS spectra (if available)
-    2. No isobaric interference within the retention time window (>20% intensity)
+    Detected in all blank files by matching the m/z, retention time, and MS/MS spectra (if available)
 
     Parameters
     ----------
@@ -226,8 +254,6 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
         else:
             target_rt_ranges.append([0, np.inf])
     
-    failed = []
-
     int_multi_files = []
 
     for fn in mb_file_names:
@@ -237,27 +263,28 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
 
         # estimate intensity tolerance
         params = Params()
-        params.estimate_params(d, estimate_mz_tol=False, estimate_cycle_time=False, estimate_int_tol=True)
+        params.estimate_params(d, estimate_mz_tol=False, estimate_int_tol=True)
 
         # record whether the internal standard is detected in the file
         matched = [False] * len(target_mzs)
         int_single_file = [0.0] * len(target_mzs)
         
         for i in range(len(target_mzs)):
-
-            if i in failed:
+            # skip if the internal standard retention time was not recorded
+            if target_rts[i] != target_rts[i]:
                 continue
 
-            _, eic_int = d.get_eic_data(target_mz=target_mzs[i], mz_tol=0.01, rt_range=target_rt_ranges[i])
+            _, eic_int, _ = d.get_eic_data(target_mz=target_mzs[i], mz_tol=0.01, rt_range=target_rt_ranges[i])
             
             # the largest intensity is above threshold (i.e. distinguishable from noise)
             if np.max(eic_int) > params.int_tol:
-                # if there is a local maximum that is higher than 20% of the highest intensity
-                # change all values in eic_int that are lower than 20% of the highest intensity to 0
-                eic_int[eic_int < np.max(eic_int) * 0.2] = 0
+                # if there is a local maximum that is higher than 50% of the highest intensity
+                # change all values in eic_int that are lower than 50% of the highest intensity to 0
+                eic_int[eic_int < np.max(eic_int) * 0.5] = 0
                 if _single_max(eic_int):
                     matched[i] = True
                     int_single_file[i] = np.max(eic_int)
+
         matched_multi_files.append(matched)
         int_multi_files.append(int_single_file)
 
@@ -289,7 +316,7 @@ def _single_max(a):
     return True
 
 
-def find_itsd_from_rois(d, istds, mz_tol=0.01, rt_tol=1.0, dp_tol=0.7, match_ms2=False):
+def find_itsd_from_rois(d, istds, mz_tol=0.015, rt_tol=1.0, dp_tol=0.7, match_ms2=False):
     """
     Find internal standards from ROIs for retention time and m/z correction.
 
@@ -318,7 +345,6 @@ def find_itsd_from_rois(d, istds, mz_tol=0.01, rt_tol=1.0, dp_tol=0.7, match_ms2
     matched_mzs = []
     matched_rts = []
 
-
     # ROIs have been sorted by m/z
 
     for istd in istds:
@@ -341,12 +367,28 @@ def find_itsd_from_rois(d, istds, mz_tol=0.01, rt_tol=1.0, dp_tol=0.7, match_ms2
             matched_rts.append(d.rois_rt_seq[matched_idx[0]])
             continue   
         
-        # if there are multiple ROIs matched, choose the one with the cloest intensity
+        # if there are multiple ROIs matched, choose the one with reasonable intensity (within 2 fold change) and closest retention time
         if len(matched_idx) > 1:
-            roi_int = [d.rois.peak_height[i] for i in matched_idx]
-            idx = np.argmin(np.abs(roi_int - istd['blank_int']))
-            matched_mzs.append(d.rois_mz_seq[matched_idx[idx]])
-            matched_rts.append(d.rois_rt_seq[matched_idx[idx]])
+            roi_int = np.array([d.rois[i].peak_height for i in matched_idx])
+            roi_rt = np.array([d.rois_rt_seq[i] for i in matched_idx])
+            idx = np.where(np.logical_and(roi_int/istd['blank_int']>0.5, roi_int/istd['blank_int']<2))[0]
+            # if there is no ROI with reasonable intensity, choose the one with the cloest retention time
+            if len(idx) == 0:
+                matched_mzs.append(d.rois_mz_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
+                matched_rts.append(d.rois_rt_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
+            # if there is only one ROI with reasonable intensity, choose it
+            if len(idx) == 1:
+                matched_mzs.append(d.rois_mz_seq[matched_idx[idx[0]]])
+                matched_rts.append(d.rois_rt_seq[matched_idx[idx[0]]])
+            # if there are multiple ROIs with reasonable intensity, choose the one with the cloest retention time
+            if len(idx) > 1:
+                matched_idx = matched_idx[idx]
+                roi_rt = np.array([d.rois_rt_seq[i] for i in matched_idx])
+                try:
+                    matched_mzs.append(d.rois_mz_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
+                    matched_rts.append(d.rois_rt_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
+                except:
+                    print(matched_idx, idx)
     
     matched_mzs = np.array(matched_mzs, dtype=np.float64)
     matched_rts = np.array(matched_rts, dtype=np.float64)
@@ -383,8 +425,11 @@ def correct_retention_time(d, matched_rts, istd_training, method="smooth_spline"
     y = np.array([i['rt'] for i in istd_training], dtype=np.float64)
 
     if method=="smooth_spline":
-        tck = splrep(x, y, s=len(x))
-        d.rois_rt_seq = BSpline(*tck)(d.rois_rt_seq)
+        try:
+            tck = splrep(x, y, s=len(x))
+            d.rois_rt_seq = BSpline(*tck)(d.rois_rt_seq)
+        except:
+            print(x, y)
 
     if method=="linear_interp":
         f = interp1d(x, y)
@@ -431,9 +476,17 @@ def correct_mz(d, matched_mzs, istd_training, method="smooth_spline"):
     # reference m/z
     y = np.array([i['preferred_mz'] for i in istd_training], dtype=np.float64)
 
+    # sort x and y by x
+    idx = np.argsort(x)
+    x = x[idx]
+    y = y[idx]
+
     if method=="smooth_spline":
-        tck = splrep(x, y, s=len(x))
-        d.rois_mz_seq = BSpline(*tck)(d.rois_mz_seq)
+        try:
+            tck = splrep(x, y, s=len(x))
+            d.rois_mz_seq = BSpline(*tck)(d.rois_mz_seq)
+        except:
+            print(x, y)
     
     if method=="linear_interp":
         f = interp1d(x, y)
