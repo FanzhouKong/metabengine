@@ -9,7 +9,7 @@ from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope
 from .alignment import alignement
 
-def feat_detection(file_name, pred_quality_NN=False, anno_isotope=False, output_single_file=False, path=None):
+def feat_detection(file_name, params=None, estimate_params=True, cut_roi=True, pred_quality_NN=False, anno_isotope=False, output_single_file=False, path=None):
     """
     A function to detect features from a raw file.
 
@@ -30,16 +30,24 @@ def feat_detection(file_name, pred_quality_NN=False, anno_isotope=False, output_
     # create a MSData object1
     d = raw.MSData()
 
-    # create a Params object
-    params = Params()
+    if estimate_params:
+        # create a Params object
+        params = Params()
+    else:
+        params = params
 
     d.read_raw_data(file_name, params)  # read raw data
-    params.estimate_params(d, estimate_mz_tol=False, estimate_int_tol=True) # estimate intensity tolerance for noise filtering
+
+    if estimate_params:
+        params.estimate_params(d, estimate_mz_tol=False, estimate_int_tol=True) # estimate intensity tolerance for noise filtering
+    
     d.drop_ion_by_int(params)   # drop ions by intensity
     params.estimate_params(d, estimate_mz_tol=True, estimate_int_tol=False) # estimate m/z tolerance for peak picking
     d.params = params   # assign the params object to the MSData object
     d.find_rois(params) # find ROIs
-    d.cut_rois(params)  # cut ROIs
+
+    if cut_roi:
+        d.cut_rois(params)  # cut ROIs
 
     # sort ROI by m/z, find roi quality by length, find the best MS2
     d.process_rois(params)

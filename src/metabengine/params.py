@@ -97,7 +97,7 @@ class Params:
             self.int_tol = np.mean(int_ms1) + 3 * np.std(int_ms1)
 
 
-    def print_params(self):
+    def show_params_info(self):
         """
         Function to print the parameters.
         ----------------------------------------------------------

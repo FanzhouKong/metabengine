@@ -21,7 +21,7 @@ from .alignment import alignement
 import pandas as pd
 
 
-def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False, istd_interval=0.3, validation=False):
+def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False, istd_interval=0.3, validation=False, params=None, estimate_params=True, cut_roi=True):
     """
     A function to run the data processing workflow by LC-Binbase.
 
@@ -89,23 +89,31 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
 
     # create lists to store the retention time and m/z of the internal standards in the valuation set if run validation
     if validation:
-        rt_val_before_correct = []
         mz_val_before_correct = []
-        rt_val_after_correct = []
+        rt_val_before_correct = []
         mz_val_after_correct = []
-
-    for file_name in full_file_names:
+        rt_val_after_correct = []
+        
+    for idx_fn, file_name in enumerate(full_file_names):
+        print("Processing file", idx_fn+1, "of", len(full_file_names), ":", file_name)
         # feature detection
-        d = feat_detection(file_name, output_single_file=output_single_file)
+        d = feat_detection(file_name, params=params, estimate_params=estimate_params, cut_roi=cut_roi, output_single_file=output_single_file)
 
         # find the selected anchors (internal standards) in the file by m/z, rt, intensity, and MS/MS spectra (if available)
-        matched_mzs, matched_rts = find_itsd_from_rois(d, istd_training)
+        matched_mzs, matched_rts, _ = find_itsd_from_rois(d, istd_training)
 
         # if run validation, find the corrected m/z and retention time for the internal standards in the validation set
         if validation:
-            matched_mzs_val, matched_rts_val = find_itsd_from_rois(d, istd_validation)
-            rt_val_before_correct.append(matched_mzs_val)
-            mz_val_before_correct.append(matched_rts_val)
+            matched_mzs_val, matched_rts_val, matched_roi_idx = find_itsd_from_rois(d, istd_validation)
+            if None in matched_roi_idx:
+                k = np.where(matched_roi_idx == None)
+                return k, istd_validation
+            else:
+                matched_mzs_val = d.rois_mz_seq[matched_roi_idx]
+                matched_rts_val = d.rois_rt_seq[matched_roi_idx]
+
+            mz_val_before_correct.append(matched_mzs_val)
+            rt_val_before_correct.append(matched_rts_val)
 
         # correct retention time
         correct_retention_time(d, matched_rts, istd_training)
@@ -115,19 +123,18 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
 
         # if run validation, find the corrected m/z and retention time for the internal standards in the validation set
         if validation:
-            matched_mzs_val, matched_rts_val = find_itsd_from_rois(d, istd_validation)
-            rt_val_after_correct.append(matched_mzs_val)
-            mz_val_after_correct.append(matched_rts_val)
+            matched_mzs_val = d.rois_mz_seq[matched_roi_idx]
+            matched_rts_val = d.rois_rt_seq[matched_roi_idx]
+            mz_val_after_correct.append(matched_mzs_val)
+            rt_val_after_correct.append(matched_rts_val)
             
-        # alignment
-        print('Running alignment on: ', file_name)
-        alignement(feature_list, d)
-    
-    # choose the best MS2 for each feature
-    for feat in feature_list:
-        feat.choose_best_ms2()
+    #     # alignment
+    #     print('Running alignment on: ', file_name)
+    #     alignement(feature_list, d)
 
-    return None
+    # # choose the best MS2 for each feature
+    # for feat in feature_list:
+    #     feat.choose_best_ms2()
     
     # output the validation results if run validation
     if validation:
@@ -136,6 +143,8 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
 
         # create a pandas dataframe to store the validation results
         validation_result = pd.DataFrame({
+            "name": [i['name'] for i in istd_validation],
+            "blank_int": [i['blank_int'] for i in istd_validation],
             "mz_MAE_before_correct": before_correct_result['mz_MAE'],
             "rt_MAE_before_correct": before_correct_result['rt_MAE'],
             "mz_MAXAE_before_correct": before_correct_result['mz_MAXAE'],
@@ -149,7 +158,7 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
         # save the validation results to a csv file
         validation_result.to_csv(os.path.join(data_dir, "validation_result.csv"), index=False)
     
-    return feature_list
+    return feature_list, istd_training, istd_validation, mz_val_before_correct, rt_val_before_correct, mz_val_after_correct, rt_val_after_correct, before_correct_result, after_correct_result
 
 
 def load_internal_standard_library(sample_type, ion_mode):
@@ -203,7 +212,7 @@ def get_data_name(data_dir, sub_folder=None):
     files = [f for f in os.listdir(subpath) if f.endswith(".mzML") or f.endswith(".mzXML")]
 
 
-    if len(files) == 0:
+    if sub_folder=="method_blank" and len(files) == 0:
         raise Exception("No data files found in the method blank folder.")
     
     files = [os.path.join(subpath, f) for f in files]
@@ -316,7 +325,7 @@ def _single_max(a):
     return True
 
 
-def find_itsd_from_rois(d, istds, mz_tol=0.015, rt_tol=1.0, dp_tol=0.7, match_ms2=False):
+def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7, match_ms2=False):
     """
     Find internal standards from ROIs for retention time and m/z correction.
 
@@ -344,6 +353,7 @@ def find_itsd_from_rois(d, istds, mz_tol=0.015, rt_tol=1.0, dp_tol=0.7, match_ms
 
     matched_mzs = []
     matched_rts = []
+    matched_roi_idx = []
 
     # ROIs have been sorted by m/z
 
@@ -351,12 +361,17 @@ def find_itsd_from_rois(d, istds, mz_tol=0.015, rt_tol=1.0, dp_tol=0.7, match_ms
         mz = istd['preferred_mz']
         rt = istd['rt']
 
-        matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < mz_tol, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
+        matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < 0.007, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
 
         if len(matched_idx) == 0:
-            matched_mzs.append(None)
-            matched_rts.append(None)
-            continue
+            matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < 0.012, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
+            if len(matched_idx) == 0:
+                matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < 0.015, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
+                if len(matched_idx) == 0:
+                    matched_mzs.append(None)
+                    matched_rts.append(None)
+                    matched_roi_idx.append(None)
+                    continue
         
         # if match by MS/MS spectra
         if match_ms2:
@@ -365,6 +380,7 @@ def find_itsd_from_rois(d, istds, mz_tol=0.015, rt_tol=1.0, dp_tol=0.7, match_ms
         if len(matched_idx) == 1:
             matched_mzs.append(d.rois_mz_seq[matched_idx[0]])
             matched_rts.append(d.rois_rt_seq[matched_idx[0]])
+            matched_roi_idx.append(matched_idx[0])
             continue   
         
         # if there are multiple ROIs matched, choose the one with reasonable intensity (within 2 fold change) and closest retention time
@@ -376,10 +392,12 @@ def find_itsd_from_rois(d, istds, mz_tol=0.015, rt_tol=1.0, dp_tol=0.7, match_ms
             if len(idx) == 0:
                 matched_mzs.append(d.rois_mz_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
                 matched_rts.append(d.rois_rt_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
+                matched_roi_idx.append(matched_idx[np.argmin(np.abs(roi_rt-rt))])
             # if there is only one ROI with reasonable intensity, choose it
             if len(idx) == 1:
                 matched_mzs.append(d.rois_mz_seq[matched_idx[idx[0]]])
                 matched_rts.append(d.rois_rt_seq[matched_idx[idx[0]]])
+                matched_roi_idx.append(matched_idx[idx[0]])
             # if there are multiple ROIs with reasonable intensity, choose the one with the cloest retention time
             if len(idx) > 1:
                 matched_idx = matched_idx[idx]
@@ -387,13 +405,15 @@ def find_itsd_from_rois(d, istds, mz_tol=0.015, rt_tol=1.0, dp_tol=0.7, match_ms
                 try:
                     matched_mzs.append(d.rois_mz_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
                     matched_rts.append(d.rois_rt_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
+                    matched_roi_idx.append(matched_idx[np.argmin(np.abs(roi_rt-rt))])
                 except:
                     print(matched_idx, idx)
     
     matched_mzs = np.array(matched_mzs, dtype=np.float64)
     matched_rts = np.array(matched_rts, dtype=np.float64)
+    matched_roi_idx = np.array(matched_roi_idx)
 
-    return matched_mzs, matched_rts
+    return matched_mzs, matched_rts, matched_roi_idx
 
 
 def correct_retention_time(d, matched_rts, istd_training, method="smooth_spline"):
@@ -533,8 +553,8 @@ def validate_istd(istd_validation, mz_val, rt_val):
     rt_MAXAE = []
 
     # to make one row for each internal standard
-    mz_val = mz_val.T
-    rt_val = rt_val.T
+    mz_val = np.array(mz_val).T
+    rt_val = np.array(rt_val).T
 
     for i in range(len(target_mzs)):
         mz_MAE.append(np.median(np.abs(mz_val[i] - target_mzs[i])))
