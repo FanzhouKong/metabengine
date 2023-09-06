@@ -156,6 +156,17 @@ class AlignedFeature:
                 total_ints.append(0.0)
 
         self.best_ms2 = self.ms2_seq[np.argmax(total_ints)]
+    
+
+    def show_feature_info(self):
+        """
+        A function to show the information of the feature.
+        """
+
+        print('m/z: ', self.mz)
+        print('RT: ', self.rt)
+        print('Area sequence: ', self.area_seq)
+        print('Height sequence: ', self.height_seq)
 
 
 def find_roi_from_data(feat, d):

@@ -41,6 +41,7 @@ class MSData:
         self.params = None  # A Params object
         self.rois_mz_seq = None
         self.rois_rt_seq = None
+        self.file_name = None  # File name of the raw data without extension
 
 
     def read_raw_data(self, file_name, params):
@@ -60,7 +61,7 @@ class MSData:
             # get extension from file name
             ext = os.path.splitext(file_name)[1]
 
-            self.file_name = file_name
+            self.file_name = file_name.split('/')[-1].split('.')[0]
 
             if ext.lower() == ".mzml":
                 with mzml.MzML(file_name) as reader:
@@ -258,7 +259,7 @@ class MSData:
         # print("Number of regular ROIs: " + str(len(self.rois)))
         # print("Number of short ROIs: " + str(len(self.rois_short)))
 
-    def process_rois(self, params):
+    def process_rois(self, params, discard_short_roi=False):
         """
         Function to process ROIs.
 
@@ -278,13 +279,17 @@ class MSData:
 
         for roi in self.rois:
             # 1. find roi quality by length
-            if len(roi.mz_seq) >= params.min_ion_num:
+            if roi.length >= params.min_ion_num:
                 roi.quality = 'good'
             else:
                 roi.quality = 'short'
             
             # 2. find the best MS2
             roi.find_best_ms2()
+        
+        if discard_short_roi:
+            self.rois = [roi for roi in self.rois if roi.quality == 'good']
+            print("Number of regular ROIs after discarding short ROIs: " + str(len(self.rois)))
 
 
     def find_roi_quality_by_length(self, params):
@@ -355,16 +360,17 @@ class MSData:
         result = []
         for roi in self.rois:
             roi.sum_roi()
-            temp = np.array([roi.mz, roi.rt, roi.roi_mz_error(), roi.roi_length(), roi.peak_area, roi.peak_height, roi.peak_height_by_ave])
+            temp = np.array([roi.mz, roi.rt, roi.length, roi.peak_area, roi.peak_height, roi.peak_height_by_ave])
             result.append(temp)
 
         # convert the result to a numpy array
         result = np.array(result)
 
         # convert result to a pandas dataframe
-        df = pd.DataFrame(result, columns=['mz', 'rt', 'mz_error', 'length', 'peak_area', 'peak_height', 'peak_height_by_ave'])
+        df = pd.DataFrame(result, columns=['mz', 'rt', 'length', 'peak_area', 'peak_height', 'peak_height_by_ave'])
 
         # save the dataframe to csv file
+        path = path + self.file_name + ".csv"
         df.to_csv(path, index=False)
     
 
@@ -373,6 +379,7 @@ class MSData:
         eic_rt = np.array([])
         eic_int = np.array([])
         eic_mz = np.array([])
+        eic_scan_idx = np.array([])
 
         for i in self.ms1_idx:
             if self.scans[i].rt > rt_range[0]:
@@ -381,15 +388,17 @@ class MSData:
                     eic_rt = np.append(eic_rt, self.scans[i].rt)
                     eic_int = np.append(eic_int, self.scans[i].int_seq[np.argmin(mz_diff)])
                     eic_mz = np.append(eic_mz, self.scans[i].mz_seq[np.argmin(mz_diff)])
+                    eic_scan_idx = np.append(eic_scan_idx, i)
                 else:
                     eic_rt = np.append(eic_rt, self.scans[i].rt)
                     eic_int = np.append(eic_int, 0.0)
                     eic_mz = np.append(eic_mz, 0.0)
+                    eic_scan_idx = np.append(eic_scan_idx, i)
 
             if self.scans[i].rt > rt_range[1]:
                 break
         
-        return eic_rt, eic_int, eic_mz
+        return eic_rt, eic_int, eic_mz, eic_scan_idx
 
 
     def find_roi_by_mz(self, mz, mz_tol=0.005):
@@ -411,7 +420,7 @@ class MSData:
         """
 
         # get the eic data
-        eic_rt, eic_int, _ = self.get_eic_data(target_mz, mz_tol=mz_tol, rt_range=rt_range)
+        eic_rt, eic_int, _, eic_scan_idx = self.get_eic_data(target_mz, mz_tol=mz_tol, rt_range=rt_range)
 
         plt.figure(figsize=(10, 3))
         plt.rcParams['font.size'] = 14
@@ -428,7 +437,7 @@ class MSData:
         else:
             plt.show()
         
-        return eic_rt[np.argmax(eic_int)], np.max(eic_int)
+        return eic_rt[np.argmax(eic_int)], np.max(eic_int), eic_scan_idx[np.argmax(eic_int)]
         
     
     def find_ms2_by_mzrt(self, mz_target, rt_target, mz_tol=0.01, rt_tol=0.3, return_best=False):
@@ -555,7 +564,40 @@ class Scan:
             print("Precursor m/z: " + str(np.round(self.precs_mz, decimals=4)))
             print("Product m/z: " + str(np.around(self.prod_mz_seq, decimals=4)))
             print("Product intensity: " + str(np.around(self.prod_int_seq, decimals=0)))
+    
 
+    def plot_scan(self, mz_range=None):
+        """
+        Function to plot a scan.
+        
+        Parameters
+        ----------------------------------------------------------
+        """
+
+        if self.level == 1:
+            x = self.mz_seq
+            y = self.int_seq
+        elif self.level == 2:
+            x = self.prod_mz_seq
+            y = self.prod_int_seq
+        
+        if mz_range is None:
+            mz_range = [np.min(x)-10, np.max(x)+10]
+        else:
+            y = y[np.logical_and(x > mz_range[0], x < mz_range[1])]
+            x = x[np.logical_and(x > mz_range[0], x < mz_range[1])]
+
+        plt.figure(figsize=(10, 3))
+        plt.rcParams['font.size'] = 14
+        plt.rcParams['font.family'] = 'Arial'
+        # plt.scatter(eic_rt, eic_int, color="black")
+        plt.vlines(x = x, ymin = 0, ymax = y, color="black", linewidth=1.5)
+        plt.hlines(y = 0, xmin = mz_range[0], xmax = mz_range[1], color="black", linewidth=1.5)
+        plt.xlabel("m/z, Dalton", fontsize=18, fontname='Arial')
+        plt.ylabel("Intensity", fontsize=18, fontname='Arial')
+        plt.xticks(fontsize=14, fontname='Arial')
+        plt.yticks(fontsize=14, fontname='Arial')
+        plt.show()
 
 
 def plot_eic(data, mz_seq, rt_seq, mz_tol=0.005):

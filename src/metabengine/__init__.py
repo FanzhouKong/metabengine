@@ -8,8 +8,9 @@ from .params import Params
 from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope
 from .alignment import alignement
+import pickle
 
-def feat_detection(file_name, params=None, estimate_params=True, cut_roi=True, pred_quality_NN=False, anno_isotope=False, output_single_file=False, path=None):
+def feat_detection(file_name, params=None, cut_roi=True, pred_quality_NN=False, anno_isotope=False, output_single_file=False, discard_short_roi=False):
     """
     A function to detect features from a raw file.
 
@@ -30,11 +31,13 @@ def feat_detection(file_name, params=None, estimate_params=True, cut_roi=True, p
     # create a MSData object1
     d = raw.MSData()
 
-    if estimate_params:
+    if params is None:
+        estimate_params = True
         # create a Params object
         params = Params()
     else:
         params = params
+        estimate_params = False
 
     d.read_raw_data(file_name, params)  # read raw data
 
@@ -42,7 +45,9 @@ def feat_detection(file_name, params=None, estimate_params=True, cut_roi=True, p
         params.estimate_params(d, estimate_mz_tol=False, estimate_int_tol=True) # estimate intensity tolerance for noise filtering
     
     d.drop_ion_by_int(params)   # drop ions by intensity
-    params.estimate_params(d, estimate_mz_tol=True, estimate_int_tol=False) # estimate m/z tolerance for peak picking
+
+    if estimate_params:
+        params.estimate_params(d, estimate_mz_tol=True, estimate_int_tol=False) # estimate m/z tolerance for peak picking
     d.params = params   # assign the params object to the MSData object
     d.find_rois(params) # find ROIs
 
@@ -50,7 +55,7 @@ def feat_detection(file_name, params=None, estimate_params=True, cut_roi=True, p
         d.cut_rois(params)  # cut ROIs
 
     # sort ROI by m/z, find roi quality by length, find the best MS2
-    d.process_rois(params)
+    d.process_rois(params, discard_short_roi=discard_short_roi)
 
     if pred_quality_NN:
         predict_quality(d)
@@ -58,17 +63,17 @@ def feat_detection(file_name, params=None, estimate_params=True, cut_roi=True, p
         annotate_isotope(d, params)
 
     if output_single_file:
-        d.output_roi_report(path)
+        d.output_roi_report(output_single_file)
 
     return d
 
 
-def process_files(file_names, output_single_file=False):
+def process_files(file_names, params=None, output_single_file=False, discard_short_roi=False, output_aligned_file=None):
 
     feature_list = []
 
     for file_name in file_names:
-        d = feat_detection(file_name, output_single_file=output_single_file)
+        d = feat_detection(file_name, params=params, output_single_file=output_single_file, discard_short_roi=discard_short_roi)
         print('Running alignment on: ', file_name)
         alignement(feature_list, d)
     
@@ -76,6 +81,13 @@ def process_files(file_names, output_single_file=False):
     for feat in feature_list:
         feat.choose_best_ms2()
     
+    try:
+        if output_aligned_file:
+            with open(output_aligned_file, 'wb') as f:
+                pickle.dump(feature_list, f)
+    except:
+        print('Unable to save the aligned feature list.')
+
     return feature_list
 
 

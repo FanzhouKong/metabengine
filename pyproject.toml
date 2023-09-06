@@ -30,6 +30,7 @@ dependencies = [
     "lxml>=4.9.2",
     "chemparse",
     "matplotlib",
+    "pickle",
 ]
 
 [project.urls]

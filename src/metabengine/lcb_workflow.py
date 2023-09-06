@@ -21,7 +21,8 @@ from .alignment import alignement
 import pandas as pd
 
 
-def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False, istd_interval=0.3, validation=False, params=None, estimate_params=True, cut_roi=True):
+def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False, istd_interval=0.3, 
+                 validation=False, params=None, estimate_params=True, cut_roi=True, mz_method="smooth_spline", rt_method="smooth_spline", match_ms2=False):
     """
     A function to run the data processing workflow by LC-Binbase.
 
@@ -93,6 +94,9 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
         rt_val_before_correct = []
         mz_val_after_correct = []
         rt_val_after_correct = []
+    
+    matched_mzs_all = []
+    matched_rts_all = []
         
     for idx_fn, file_name in enumerate(full_file_names):
         print("Processing file", idx_fn+1, "of", len(full_file_names), ":", file_name)
@@ -115,11 +119,13 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
             mz_val_before_correct.append(matched_mzs_val)
             rt_val_before_correct.append(matched_rts_val)
 
+        matched_mzs_all.append(matched_mzs)
+        matched_rts_all.append(matched_rts)
         # correct retention time
-        correct_retention_time(d, matched_rts, istd_training)
+        correct_retention_time(d, matched_rts, istd_training, method=rt_method)
 
         # correct m/z
-        correct_mz(d, matched_mzs, istd_training)
+        correct_mz(d, matched_mzs, istd_training, method=mz_method)
 
         # if run validation, find the corrected m/z and retention time for the internal standards in the validation set
         if validation:
@@ -158,7 +164,7 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
         # save the validation results to a csv file
         validation_result.to_csv(os.path.join(data_dir, "validation_result.csv"), index=False)
     
-    return feature_list, istd_training, istd_validation, mz_val_before_correct, rt_val_before_correct, mz_val_after_correct, rt_val_after_correct, before_correct_result, after_correct_result
+    return feature_list, istd_training, istd_validation, mz_val_before_correct, rt_val_before_correct, mz_val_after_correct, rt_val_after_correct, before_correct_result, after_correct_result, matched_mzs_all, matched_rts_all
 
 
 def load_internal_standard_library(sample_type, ion_mode):
@@ -325,7 +331,7 @@ def _single_max(a):
     return True
 
 
-def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7, match_ms2=False):
+def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.4, dp_tol=0.7, match_ms2=False):
     """
     Find internal standards from ROIs for retention time and m/z correction.
 
@@ -361,17 +367,13 @@ def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7, match_ms
         mz = istd['preferred_mz']
         rt = istd['rt']
 
-        matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < 0.007, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
+        matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < 0.012, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
 
         if len(matched_idx) == 0:
-            matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < 0.012, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
-            if len(matched_idx) == 0:
-                matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < 0.015, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
-                if len(matched_idx) == 0:
-                    matched_mzs.append(None)
-                    matched_rts.append(None)
-                    matched_roi_idx.append(None)
-                    continue
+            matched_mzs.append(None)
+            matched_rts.append(None)
+            matched_roi_idx.append(None)
+            continue
         
         # if match by MS/MS spectra
         if match_ms2:
@@ -446,14 +448,17 @@ def correct_retention_time(d, matched_rts, istd_training, method="smooth_spline"
 
     if method=="smooth_spline":
         try:
-            tck = splrep(x, y, s=len(x))
+            tck = splrep(x, y, s=len(x)*0.005)
             d.rois_rt_seq = BSpline(*tck)(d.rois_rt_seq)
         except:
             print(x, y)
 
     if method=="linear_interp":
-        f = interp1d(x, y)
-        d.rois_rt_seq = f(d.rois_rt_seq)
+        try:
+            f = interp1d(x, y)
+            d.rois_rt_seq = f(d.rois_rt_seq)
+        except:
+            print(x, y)
 
     if method=="linear_regression":
         reg = LinearRegression().fit(x.reshape(-1, 1), y)
@@ -503,14 +508,17 @@ def correct_mz(d, matched_mzs, istd_training, method="smooth_spline"):
 
     if method=="smooth_spline":
         try:
-            tck = splrep(x, y, s=len(x))
+            tck = splrep(x, y, s=len(x)*0.0001)
             d.rois_mz_seq = BSpline(*tck)(d.rois_mz_seq)
         except:
             print(x, y)
     
     if method=="linear_interp":
-        f = interp1d(x, y)
-        d.rois_mz_seq = f(d.rois_mz_seq)
+        try:
+            f = interp1d(x, y)
+            d.rois_mz_seq = f(d.rois_mz_seq)
+        except:
+            print(x, y)
 
     if method=="linear_regression":
         reg = LinearRegression().fit(x.reshape(-1, 1), y)

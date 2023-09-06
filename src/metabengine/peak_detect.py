@@ -257,6 +257,7 @@ class Roi:
         self.peak_height = np.nan
         self.peak_height_by_ave = np.nan
         self.best_ms2 = None
+        self.length = 0
 
         # Ceature attribute for roi evaluation
         self.quality = None
@@ -308,14 +309,6 @@ class Roi:
         """
 
         return np.nanstd(self.mz_seq)
-    
-
-    def roi_length(self):
-        """
-        Function to calculate the length of the ROI.
-        """
-
-        return len(self.scan_idx_seq)
 
 
     def find_roi_rt(self):
@@ -380,7 +373,8 @@ class Roi:
         self.find_roi_height()
         self.find_roi_area()
         self.find_roi_height_by_ave()
-        self.mz = np.nanmean(self.mz_seq)
+        self.mz = self.mz_seq[np.argmax(self.int_seq)]
+        self.length = len(self.mz_seq)
     
 
     def subset_roi(self, start, end):
