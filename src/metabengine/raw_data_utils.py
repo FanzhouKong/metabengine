@@ -487,6 +487,36 @@ class MSData:
             return matched_ms2      
 
 
+    def plot_roi(self, roi_idx, mz_tol=0.005, rt_range=[0, np.inf], output=False):
+        """
+        Function to plot EIC of a target m/z.
+        """
+
+        # get the eic data
+        eic_rt, eic_int, _, eic_scan_idx = self.get_eic_data(self.rois[roi_idx].mz, mz_tol=mz_tol, rt_range=rt_range)
+        idx_start = np.where(eic_scan_idx == self.rois[roi_idx].scan_idx_seq[1])[0][0]
+        idx_end = np.where(eic_scan_idx == self.rois[roi_idx].scan_idx_seq[-2])[0][0] + 1
+
+        plt.figure(figsize=(7, 3))
+        plt.rcParams['font.size'] = 14
+        plt.rcParams['font.family'] = 'Arial'
+        plt.plot(eic_rt, eic_int, linewidth=1, color="black")
+        plt.fill_between(eic_rt[idx_start:idx_end], eic_int[idx_start:idx_end], color="black", alpha=0.5)
+        plt.xlabel("Retention Time (min)", fontsize=18, fontname='Arial')
+        plt.ylabel("Intensity", fontsize=18, fontname='Arial')
+        plt.xticks(fontsize=14, fontname='Arial')
+        plt.yticks(fontsize=14, fontname='Arial')
+
+        if output:
+            plt.savefig(output, dpi=300, bbox_inches="tight")
+            plt.close()
+        else:
+            plt.show()
+        
+        return eic_rt[np.argmax(eic_int)], np.max(eic_int), eic_scan_idx[np.argmax(eic_int)]
+
+
+
 class Scan:
     """
     A class that represents a MS scan.
@@ -598,30 +628,3 @@ class Scan:
         plt.xticks(fontsize=14, fontname='Arial')
         plt.yticks(fontsize=14, fontname='Arial')
         plt.show()
-
-
-def plot_eic(data, mz_seq, rt_seq, mz_tol=0.005):
-    """
-    A function to plot the EICs
-
-    Parameters
-    ----------
-    data : MSData object
-    """
-
-    for i in range(len(mz_seq)):
-        mz = mz_seq[i]
-        rt = rt_seq[i]
-
-        # get EIC data
-        eic = data.get_eic_data(mz, rt, mz_tol=mz_tol)
-
-        # plot EIC
-        plt.plot(eic[1], eic[0], linewidth=1, color="black")
-        plt.xlabel("Retention Time (min)", fontsize=18, fontname='Arial')
-        plt.ylabel("Intensity", fontsize=18, fontname='Arial')
-        plt.xticks(fontsize=14, fontname='Arial')
-        plt.yticks(fontsize=14, fontname='Arial')
-        # save to png
-        plt.savefig("eic_" + str(mz) + "_" + str(rt) + ".png", dpi=300, bbox_inches="tight")
-        plt.close()

@@ -22,7 +22,7 @@ import pandas as pd
 
 
 def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False, istd_interval=0.3, 
-                 validation=False, params=None, estimate_params=True, cut_roi=True, mz_method="smooth_spline", rt_method="smooth_spline", match_ms2=False):
+                 validation=False, params=None, cut_roi=True, mz_method="smooth_spline", rt_method="smooth_spline", match_ms2=False):
     """
     A function to run the data processing workflow by LC-Binbase.
 
@@ -101,7 +101,7 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     for idx_fn, file_name in enumerate(full_file_names):
         print("Processing file", idx_fn+1, "of", len(full_file_names), ":", file_name)
         # feature detection
-        d = feat_detection(file_name, params=params, estimate_params=estimate_params, cut_roi=cut_roi, output_single_file=output_single_file)
+        d = feat_detection(file_name, params=params, cut_roi=cut_roi, output_single_file=output_single_file)
 
         # find the selected anchors (internal standards) in the file by m/z, rt, intensity, and MS/MS spectra (if available)
         matched_mzs, matched_rts, _ = find_itsd_from_rois(d, istd_training)
@@ -289,7 +289,7 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
             if target_rts[i] != target_rts[i]:
                 continue
 
-            _, eic_int, _ = d.get_eic_data(target_mz=target_mzs[i], mz_tol=0.01, rt_range=target_rt_ranges[i])
+            eic_int= d.get_eic_data(target_mz=target_mzs[i], mz_tol=0.01, rt_range=target_rt_ranges[i])[1]
             
             # the largest intensity is above threshold (i.e. distinguishable from noise)
             if np.max(eic_int) > params.int_tol:
@@ -331,7 +331,7 @@ def _single_max(a):
     return True
 
 
-def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.4, dp_tol=0.7, match_ms2=False):
+def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.2, dp_tol=0.7, match_ms2=False):
     """
     Find internal standards from ROIs for retention time and m/z correction.
 

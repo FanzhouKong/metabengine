@@ -8,7 +8,7 @@ from tqdm import tqdm
 from scipy.signal import argrelextrema
 from .msms import spec_similarity
 import copy
-
+import time
 
 def roi_finder(d, params, **kwargs):
     """
@@ -54,6 +54,7 @@ def roi_finder(d, params, **kwargs):
         visited_rois_idx = []   # A list to store the visited indices of rois
 
         # Loop over all current rois
+
         for i, roi in enumerate(rois):
             mz_diff = np.abs(roi.mz - s.mz_seq)
             if np.min(mz_diff) < params.mz_tol_ms1:
@@ -66,18 +67,22 @@ def roi_finder(d, params, **kwargs):
                     visited_idx.append(min_idx)
                     visited_rois_idx.append(i)
 
+
         to_be_moved = []
         # Plus one to the gap counter of the rois that are not visited
         for i in range(len(rois)):
             if i not in visited_rois_idx:
                 rois[i].extend_roi(scan_idx=ms1_idx, rt=s.rt, mz=np.nan, intensity=0)
+
                 rois[i].gap_counter = rois[i].gap_counter + 1
                 if rois[i].gap_counter > params.roi_gap:
                     to_be_moved.append(i)
         
+
         # Move the rois that have not been visited for a long time to final_rois
         for i in to_be_moved[::-1]:
             final_rois.append(rois.pop(i))
+        
         
         # Create new rois for the rest
         for i in range(len(s.int_seq)):
@@ -99,7 +104,7 @@ def roi_finder(d, params, **kwargs):
 
     for roi in final_rois:
         roi.sum_roi()
-    
+
     return final_rois
 
 

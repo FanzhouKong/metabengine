@@ -49,6 +49,7 @@ def feat_detection(file_name, params=None, cut_roi=True, pred_quality_NN=False, 
     if estimate_params:
         params.estimate_params(d, estimate_mz_tol=True, estimate_int_tol=False) # estimate m/z tolerance for peak picking
     d.params = params   # assign the params object to the MSData object
+
     d.find_rois(params) # find ROIs
 
     if cut_roi:
