@@ -79,6 +79,8 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     print("number of internal standards in training set: ", len(istd_training))
     print("number of internal standards in validation set: ", len(istd_validation))
 
+    return istd_training, istd_validation
+
     # Process each file from pooled QC to real samples to method blanks
     qc_file_names = get_data_name(data_dir, "pooled_qc")
     sample_file_names = get_data_name(data_dir, "sample")
@@ -444,7 +446,9 @@ def correct_retention_time(d, matched_rts, istd_training, method="smooth_spline"
     # data retention time
     x = matched_rts
     # reference retention time
-    y = np.array([i['rt'] for i in istd_training], dtype=np.float64)
+    y = x - np.array([i['rt'] for i in istd_training], dtype=np.float64)
+    x = np.insert(x, 0, 0.0)
+    y = np.insert(y, 0, 0.0)
 
     if method=="smooth_spline":
         try:
