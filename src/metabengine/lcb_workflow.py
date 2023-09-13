@@ -73,8 +73,11 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
             rt_tmp = istd_selected[i]['rt']
         else:
             istd_validation.append(istd_selected[i])
-    
+
+    if istd_selected[-1]['rt'] - istd_training[-1]['rt'] < istd_interval:
+        istd_validation.append(istd_training.pop())
     istd_training.append(istd_selected[-1])
+
     
     print("number of internal standards in training set: ", len(istd_training))
     print("number of internal standards in validation set: ", len(istd_validation))
@@ -446,13 +449,22 @@ def correct_retention_time(d, matched_rts, istd_training, method="smooth_spline"
     # data retention time
     x = matched_rts
     # reference retention time
-    y = x - np.array([i['rt'] for i in istd_training], dtype=np.float64)
+    y = np.array([i['rt'] for i in istd_training], dtype=np.float64)
     x = np.insert(x, 0, 0.0)
+    x = np.append(x, 5.0)
     y = np.insert(y, 0, 0.0)
+    y = np.append(y, 5.0)
+
+    # check if x is monotonically increasing
+    while np.all(np.diff(x) > 0):
+        diff = np.abs(y-x)
+        idx = np.argmax(diff)
+        x = np.delete(x, idx)
+        y = np.delete(y, idx)
 
     if method=="smooth_spline":
         try:
-            tck = splrep(x, y, s=len(x)*0.005)
+            tck = splrep(x, y, s=1)
             d.rois_rt_seq = BSpline(*tck)(d.rois_rt_seq)
         except:
             print(x, y)
