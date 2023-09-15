@@ -47,7 +47,7 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     # create three folders for method blank, pooled QC, and sample data
     if create_sub_folders==True:
         _create_folder(data_dir)
-        _ = input("Please put method blank data in the method_blank folder, pooled QC data in the pooled_qc folder, and sample data in the sample folder. Press any key to continue...")
+        _ = input("Please put method blank data in the 'blank' folder, pooled QC data in the pooled_qc folder, and sample data in the sample folder. Press any key to continue...")
     
     # Load internal standard library
     db = load_internal_standard_library(sample_type, ion_mode)
@@ -55,7 +55,7 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     print(len(db), "internal standards loaded.")
 
     # Get all method blank data
-    mb_file_names = get_data_name(data_dir, "method_blank")
+    mb_file_names = get_data_name(data_dir, "blank")
     # Select internal standards from method blank data as chemical anchors
     istd_selected = select_istd_from_mb(mb_file_names, db)
 
@@ -223,7 +223,7 @@ def get_data_name(data_dir, sub_folder=None):
     files = [f for f in os.listdir(subpath) if f.endswith(".mzML") or f.endswith(".mzXML")]
 
 
-    if sub_folder=="method_blank" and len(files) == 0:
+    if sub_folder=="blank" and len(files) == 0:
         raise Exception("No data files found in the method blank folder.")
     
     files = [os.path.join(subpath, f) for f in files]
@@ -236,7 +236,7 @@ def _create_folder(data_dir):
     Create three folders for method blank, pooled QC, and sample data.
     """
 
-    os.makedirs(os.path.join(data_dir, "method_blank"))
+    os.makedirs(os.path.join(data_dir, "blank"))
     os.makedirs(os.path.join(data_dir, "pooled_qc"))
     os.makedirs(os.path.join(data_dir, "sample"))
 
@@ -277,7 +277,8 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
     int_multi_files = []
 
     for fn in mb_file_names:
-
+        
+        print("Processing file", mb_file_names.index(fn)+1, "of", len(mb_file_names), ":", fn)
         # read raw file
         d = read_raw_file_to_obj(fn)
 
@@ -336,7 +337,7 @@ def _single_max(a):
     return True
 
 
-def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.2, dp_tol=0.7, match_ms2=False):
+def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7, match_ms2=False):
     """
     Find internal standards from ROIs for retention time and m/z correction.
 
@@ -394,7 +395,7 @@ def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.2, dp_tol=0.7, match_ms
         if len(matched_idx) > 1:
             roi_int = np.array([d.rois[i].peak_height for i in matched_idx])
             roi_rt = np.array([d.rois_rt_seq[i] for i in matched_idx])
-            idx = np.where(np.logical_and(roi_int/istd['blank_int']>0.5, roi_int/istd['blank_int']<2))[0]
+            idx = np.where(np.logical_and(roi_int/istd['blank_int']>0.33, roi_int/istd['blank_int']<3))[0]
             # if there is no ROI with reasonable intensity, choose the one with the cloest retention time
             if len(idx) == 0:
                 matched_mzs.append(d.rois_mz_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
@@ -405,14 +406,26 @@ def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.2, dp_tol=0.7, match_ms
                 matched_mzs.append(d.rois_mz_seq[matched_idx[idx[0]]])
                 matched_rts.append(d.rois_rt_seq[matched_idx[idx[0]]])
                 matched_roi_idx.append(matched_idx[idx[0]])
-            # if there are multiple ROIs with reasonable intensity, choose the one with the cloest retention time
+
+            # # if there are multiple ROIs with reasonable intensity, choose the one with the cloest retention time
+            # if len(idx) > 1:
+            #     matched_idx = matched_idx[idx]
+            #     roi_rt = np.array([d.rois_rt_seq[i] for i in matched_idx])
+            #     try:
+            #         matched_mzs.append(d.rois_mz_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
+            #         matched_rts.append(d.rois_rt_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
+            #         matched_roi_idx.append(matched_idx[np.argmin(np.abs(roi_rt-rt))])
+            #     except:
+            #         print(matched_idx, idx)
+
+            # if there are multiple ROIs with reasonable intensity, first check MS2, then choose the one with the highest intensity (peak height)
             if len(idx) > 1:
                 matched_idx = matched_idx[idx]
-                roi_rt = np.array([d.rois_rt_seq[i] for i in matched_idx])
+                roi_int = roi_int[idx]
                 try:
-                    matched_mzs.append(d.rois_mz_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
-                    matched_rts.append(d.rois_rt_seq[matched_idx[np.argmin(np.abs(roi_rt-rt))]])
-                    matched_roi_idx.append(matched_idx[np.argmin(np.abs(roi_rt-rt))])
+                    matched_mzs.append(d.rois_mz_seq[matched_idx[np.argmax(roi_int)]])
+                    matched_rts.append(d.rois_rt_seq[matched_idx[np.argmax(roi_int)]])
+                    matched_roi_idx.append(matched_idx[np.argmax(roi_int)])
                 except:
                     print(matched_idx, idx)
     
