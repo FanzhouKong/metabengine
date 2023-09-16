@@ -19,6 +19,7 @@ from scipy.interpolate import interp1d, splrep, BSpline
 from sklearn.linear_model import LinearRegression
 from .alignment import alignement
 import pandas as pd
+from .msms import spec_similarity
 
 
 def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False, istd_interval=0.3, 
@@ -276,6 +277,8 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
     
     int_multi_files = []
 
+    ms2_multi_files = [None] * len(db)
+
     for fn in mb_file_names:
         
         print("Processing file", mb_file_names.index(fn)+1, "of", len(mb_file_names), ":", fn)
@@ -306,6 +309,25 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
                     matched[i] = True
                     int_single_file[i] = np.max(eic_int)
 
+                    # find ms2
+                    if ms2_multi_files[i] is None:
+                        ms2_tmp = d.find_ms2_by_mzrt(target_mzs[i], target_rts[i], mz_tol=0.01, rt_tol=0.2)
+                        if len(ms2_tmp) > 0:
+                            ms2_multi_files[i] = ms2_tmp[len(ms2_tmp)//2]
+                # else:
+                #     print("Multiple local maxima found for", db[i]['name'], "in", fn)
+            
+            # # the largest intensity is above threshold (i.e. distinguishable from noise)
+            # if np.max(eic_int) > params.int_tol:
+            #     matched[i] = True
+            #     int_single_file[i] = np.max(eic_int)
+
+            #     # find ms2
+            #     if ms2_multi_files[i] is None:
+            #         ms2_tmp = d.find_ms2_by_mzrt(target_mzs[i], target_rts[i], mz_tol=0.01, rt_tol=0.2)
+            #         if len(ms2_tmp) > 0:
+            #             ms2_multi_files[i] = ms2_tmp[len(ms2_tmp)//2]
+
         matched_multi_files.append(matched)
         int_multi_files.append(int_single_file)
 
@@ -315,6 +337,7 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
 
     for i in id:
         db[i]['blank_int'] = np.mean([int_multi_files[j][i] for j in range(len(mb_file_names))])
+        db[i]['ms2'] = ms2_multi_files[i]
 
     return [db[i] for i in id]
                         
@@ -337,7 +360,7 @@ def _single_max(a):
     return True
 
 
-def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7, match_ms2=False):
+def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7):
     """
     Find internal standards from ROIs for retention time and m/z correction.
 
@@ -353,8 +376,6 @@ def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7, match_ms
         Retention time tolerance.
     dp_tol: float
         Dot product tolerance.
-    match_ms2: bool
-        Whether to match MS/MS spectra. Default is False.
 
     Returns
     ----------------------------------------------------------
@@ -381,9 +402,18 @@ def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7, match_ms
             matched_roi_idx.append(None)
             continue
         
-        # if match by MS/MS spectra
-        if match_ms2:
-            pass
+        # match by MS/MS spectra
+        
+        if istd['ms2'] is not None and len(matched_idx) > 1:
+            matched_idx_tmp = []
+            for i in matched_idx:
+                if d.rois[i].best_ms2 is not None:
+                    dp = spec_similarity(d.rois[i].best_ms2, istd['ms2'])
+                    if dp > dp_tol:
+                        matched_idx_tmp.append(i)
+            
+            if len(matched_idx_tmp) > 0:
+                matched_idx = matched_idx_tmp
         
         if len(matched_idx) == 1:
             matched_mzs.append(d.rois_mz_seq[matched_idx[0]])
