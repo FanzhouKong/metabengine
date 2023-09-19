@@ -15,11 +15,12 @@ import os
 from . import read_raw_file_to_obj, feat_detection
 from .params import Params
 import numpy as np
-from scipy.interpolate import interp1d, splrep, BSpline
+from scipy.interpolate import interp1d, splrep, BSpline, pchip_interpolate
 from sklearn.linear_model import LinearRegression
 from .alignment import alignement
 import pandas as pd
 from .msms import spec_similarity
+from .raw_data_utils import Scan
 
 
 def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, output_single_file=False, istd_interval=0.3, 
@@ -58,7 +59,7 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     # Get all method blank data
     mb_file_names = get_data_name(data_dir, "blank")
     # Select internal standards from method blank data as chemical anchors
-    istd_selected = select_istd_from_mb(mb_file_names, db)
+    istd_selected, matched_multi_files = select_istd_from_mb(mb_file_names, db)
 
     # sort the selected internal standards by retention time
     istd_selected = sorted(istd_selected, key=lambda x: x['rt'])
@@ -83,7 +84,7 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
     print("number of internal standards in training set: ", len(istd_training))
     print("number of internal standards in validation set: ", len(istd_validation))
 
-    return istd_training, istd_validation
+    return istd_training, istd_validation, matched_multi_files, db
 
     # Process each file from pooled QC to real samples to method blanks
     qc_file_names = get_data_name(data_dir, "pooled_qc")
@@ -199,9 +200,15 @@ def load_internal_standard_library(sample_type, ion_mode):
     data_path = os.path.join(os.path.dirname(__file__), 'data', fn)
 
     with open(data_path, 'r') as f:
-        tmp = json.load(f)
+        db = json.load(f)
 
-    db = [i for i in tmp if i['rt'] == i['rt']]
+    for i in db:
+        if i['ms2'] is not None:
+            tmp = Scan(level=2)
+            tmp.precs_mz = i['ms2']['precs_mz']
+            tmp.prod_mz_seq = np.array(i['ms2']['prod_mz_seq'])
+            tmp.prod_int_seq = np.int64(i['ms2']['prod_int_seq'])
+            i['ms2'] = tmp
 
     return db
 
@@ -270,14 +277,11 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
     target_rts = [i['rt'] for i in db]
     target_rt_ranges = []
     for i in range(len(db)):
-        if target_rts[i] == target_rts[i]:
-            target_rt_ranges.append([target_rts[i]-rt_tol, target_rts[i]+rt_tol])
-        else:
-            target_rt_ranges.append([0, np.inf])
+        target_rt_ranges.append([target_rts[i]-rt_tol, target_rts[i]+rt_tol])
     
     int_multi_files = []
 
-    ms2_multi_files = [None] * len(db)
+    ms2_multi_files = [i['ms2'] for i in db]
 
     for fn in mb_file_names:
         
@@ -294,39 +298,34 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
         int_single_file = [0.0] * len(target_mzs)
         
         for i in range(len(target_mzs)):
-            # skip if the internal standard retention time was not recorded
-            if target_rts[i] != target_rts[i]:
-                continue
 
-            eic_int= d.get_eic_data(target_mz=target_mzs[i], mz_tol=0.01, rt_range=target_rt_ranges[i])[1]
-            
-            # the largest intensity is above threshold (i.e. distinguishable from noise)
-            if np.max(eic_int) > params.int_tol:
-                # if there is a local maximum that is higher than 50% of the highest intensity
-                # change all values in eic_int that are lower than 50% of the highest intensity to 0
-                eic_int[eic_int < np.max(eic_int) * 0.5] = 0
-                if _single_max(eic_int):
-                    matched[i] = True
-                    int_single_file[i] = np.max(eic_int)
-
-                    # find ms2
-                    if ms2_multi_files[i] is None:
-                        ms2_tmp = d.find_ms2_by_mzrt(target_mzs[i], target_rts[i], mz_tol=0.01, rt_tol=0.2)
-                        if len(ms2_tmp) > 0:
-                            ms2_multi_files[i] = ms2_tmp[len(ms2_tmp)//2]
-                # else:
-                #     print("Multiple local maxima found for", db[i]['name'], "in", fn)
+            eic_int= d.get_eic_data(target_mz=target_mzs[i], mz_tol=mz_tol, rt_range=target_rt_ranges[i])[1]
             
             # # the largest intensity is above threshold (i.e. distinguishable from noise)
             # if np.max(eic_int) > params.int_tol:
-            #     matched[i] = True
-            #     int_single_file[i] = np.max(eic_int)
+            #     # if there is a local maximum that is higher than 50% of the highest intensity
+            #     # change all values in eic_int that are lower than 50% of the highest intensity to 0
+            #     eic_int[eic_int < np.max(eic_int) * 0.5] = 0
+            #     if _single_max(eic_int):
+            #         matched[i] = True
+            #         int_single_file[i] = np.max(eic_int)
 
-            #     # find ms2
-            #     if ms2_multi_files[i] is None:
-            #         ms2_tmp = d.find_ms2_by_mzrt(target_mzs[i], target_rts[i], mz_tol=0.01, rt_tol=0.2)
-            #         if len(ms2_tmp) > 0:
-            #             ms2_multi_files[i] = ms2_tmp[len(ms2_tmp)//2]
+            #         # find ms2
+            #         if ms2_multi_files[i] is None:
+            #             ms2_tmp = d.find_ms2_by_mzrt(target_mzs[i], target_rts[i], mz_tol=0.01, rt_tol=0.2)
+            #             if len(ms2_tmp) > 0:
+            #                 ms2_multi_files[i] = ms2_tmp[len(ms2_tmp)//2]
+            
+            # the largest intensity is above threshold (i.e. distinguishable from noise)
+            if np.max(eic_int) > params.int_tol:
+                matched[i] = True
+                int_single_file[i] = np.max(eic_int)
+
+                # find ms2
+                if ms2_multi_files[i] is None:
+                    ms2_tmp = d.find_ms2_by_mzrt(target_mzs[i], target_rts[i], mz_tol=0.01, rt_tol=0.2)
+                    if len(ms2_tmp) > 0:
+                        ms2_multi_files[i] = ms2_tmp[len(ms2_tmp)//2]
 
         matched_multi_files.append(matched)
         int_multi_files.append(int_single_file)
@@ -339,7 +338,7 @@ def select_istd_from_mb(mb_file_names, db, mz_tol=0.01, rt_tol=1.0, match_ms2=Fa
         db[i]['blank_int'] = np.mean([int_multi_files[j][i] for j in range(len(mb_file_names))])
         db[i]['ms2'] = ms2_multi_files[i]
 
-    return [db[i] for i in id]
+    return [db[i] for i in id], matched_multi_files
                         
 
 def _single_max(a):
@@ -360,7 +359,7 @@ def _single_max(a):
     return True
 
 
-def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7):
+def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.8, dp_tol=0.7):
     """
     Find internal standards from ROIs for retention time and m/z correction.
 
@@ -394,7 +393,7 @@ def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7):
         mz = istd['preferred_mz']
         rt = istd['rt']
 
-        matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < 0.012, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
+        matched_idx = np.where(np.logical_and(np.abs(d.rois_mz_seq-mz) < mz_tol, np.abs(d.rois_rt_seq-rt) < rt_tol))[0]
 
         if len(matched_idx) == 0:
             matched_mzs.append(None)
@@ -413,7 +412,7 @@ def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7):
                         matched_idx_tmp.append(i)
             
             if len(matched_idx_tmp) > 0:
-                matched_idx = matched_idx_tmp
+                matched_idx = np.array(matched_idx_tmp)
         
         if len(matched_idx) == 1:
             matched_mzs.append(d.rois_mz_seq[matched_idx[0]])
@@ -506,18 +505,12 @@ def correct_retention_time(d, matched_rts, istd_training, method="smooth_spline"
         y = np.delete(y, idx)
 
     if method=="smooth_spline":
-        try:
-            tck = splrep(x, y, s=1)
-            d.rois_rt_seq = BSpline(*tck)(d.rois_rt_seq)
-        except:
-            print(x, y)
+        tck = splrep(x, y, s=1)
+        d.rois_rt_seq = BSpline(*tck)(d.rois_rt_seq)
 
     if method=="linear_interp":
-        try:
-            f = interp1d(x, y)
-            d.rois_rt_seq = f(d.rois_rt_seq)
-        except:
-            print(x, y)
+        f = interp1d(x, y)
+        d.rois_rt_seq = f(d.rois_rt_seq)
 
     if method=="linear_regression":
         reg = LinearRegression().fit(x.reshape(-1, 1), y)
