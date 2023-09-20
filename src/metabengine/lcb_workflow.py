@@ -359,7 +359,7 @@ def _single_max(a):
     return True
 
 
-def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.8, dp_tol=0.7):
+def find_itsd_from_rois(d, istds, mz_tol=0.012, rt_tol=0.3, dp_tol=0.7):
     """
     Find internal standards from ROIs for retention time and m/z correction.
 
