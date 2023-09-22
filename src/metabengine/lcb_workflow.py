@@ -228,7 +228,7 @@ def get_data_name(data_dir, sub_folder=None):
         subpath = os.path.join(data_dir, sub_folder)
 
     # Get all files in the directory ending with ".mzML" or ".mzXML"
-    files = [f for f in os.listdir(subpath) if f.endswith(".mzML") or f.endswith(".mzXML")]
+    files = [f for f in os.listdir(subpath) if f.lower().endswith(".mzml") or f.lower().endswith(".mzxml")]
 
 
     if sub_folder=="blank" and len(files) == 0:
