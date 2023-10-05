@@ -53,22 +53,27 @@ def roi_finder(d, params, **kwargs):
         visited_idx = []    # A list to store the visited indices of ions in the current MS1 scan
         visited_rois_idx = []   # A list to store the visited indices of rois
 
+        
         # Loop over all current rois
-
         for i, roi in enumerate(rois):
+            
             mz_diff = np.abs(roi.mz - s.mz_seq)
-            if np.min(mz_diff) < params.mz_tol_ms1:
-                min_idx = np.argmin(mz_diff)
+
+            min_idx = np.argmin(mz_diff)
+
+            if mz_diff[min_idx] < params.mz_tol_ms1:
                 if min_idx not in visited_idx:
                     roi.extend_roi(scan_idx=ms1_idx, rt=s.rt, mz=s.mz_seq[min_idx], intensity=s.int_seq[min_idx])
+                    
                     roi.gap_counter = 0
+
                     if allocate_vec[min_idx] > 0:
                         roi.ms2_seq.append(d.scans[allocate_vec[min_idx]])
                     visited_idx.append(min_idx)
                     visited_rois_idx.append(i)
-
-
+            
         to_be_moved = []
+
         # Plus one to the gap counter of the rois that are not visited
         for i in range(len(rois)):
             if i not in visited_rois_idx:
@@ -78,23 +83,19 @@ def roi_finder(d, params, **kwargs):
                 if rois[i].gap_counter > params.roi_gap:
                     to_be_moved.append(i)
         
-
         # Move the rois that have not been visited for a long time to final_rois
         for i in to_be_moved[::-1]:
             final_rois.append(rois.pop(i))
-        
         
         # Create new rois for the rest
         for i in range(len(s.int_seq)):
             if i not in visited_idx:
                 # Add a zero before the new roi
-                roi = Roi(scan_idx=last_ms1_idx, rt=last_rt, mz=np.nan, intensity=0)
+                roi = Roi(scan_idx=last_ms1_idx, rt=last_rt, mz=s.mz_seq[i], intensity=0)
                 roi.extend_roi(scan_idx=ms1_idx, rt=s.rt, mz=s.mz_seq[i], intensity=s.int_seq[i])
-                roi.mz = s.mz_seq[i]
                 if allocate_vec[i] > 0:
                     roi.ms2_seq.append(d.scans[allocate_vec[i]])
                 rois.append(roi)
-
         last_ms1_idx = ms1_idx
         last_rt = s.rt
            
@@ -208,7 +209,7 @@ def loc_ms2_for_ms1_scan(d, ms1_idx, **kwargs):
         The index of the MS1 scan.
     """
 
-    allocate_vec = np.zeros(len(d.scans[ms1_idx].int_seq), dtype=int) - 1
+    allocate_vec = [0] * len(d.scans[ms1_idx].mz_seq)
     mz_vec = d.scans[ms1_idx].mz_seq
 
     for i in range(ms1_idx+1, len(d.scans)):
@@ -244,17 +245,17 @@ class Roi:
         """
 
         self.id = None
-        self.scan_idx_seq = np.array([scan_idx], dtype = np.int32)
+        self.scan_idx_seq = [scan_idx]
 
-        self.rt_seq = np.array([rt], dtype = np.float64)
-        self.mz_seq = np.array([mz], dtype = np.float64)
-        self.int_seq = np.array([intensity], dtype = np.int64)
+        self.rt_seq = [rt]
+        self.mz_seq = [mz]
+        self.int_seq = [intensity]
         self.ms2_seq = []
 
         # Count the gaps in the ROI's tail
         self.gap_counter = 0
 
-        # Create attribute for the mean values of the ROI
+        # Create attributes for the summarized values of the ROI
         self.mz = mz
         self.rt = np.nan
         self.scan_number = -1
@@ -264,7 +265,7 @@ class Roi:
         self.best_ms2 = None
         self.length = 0
 
-        # Ceature attribute for roi evaluation
+        # Ceature attributes for roi evaluation
         self.quality = None
         self.isotope = {
             'isotope': False,
@@ -293,10 +294,10 @@ class Roi:
         """
 
         # Extend the ROI
-        self.scan_idx_seq = np.append(self.scan_idx_seq, scan_idx)
-        self.rt_seq = np.append(self.rt_seq, rt)
-        self.mz_seq = np.append(self.mz_seq, mz)
-        self.int_seq = np.append(self.int_seq, intensity)
+        self.scan_idx_seq.append(scan_idx)
+        self.rt_seq.append(rt)
+        self.mz_seq.append(mz)
+        self.int_seq.append(intensity)
     
 
     def show_roi_info(self):
@@ -316,21 +317,17 @@ class Roi:
         return np.nanstd(self.mz_seq)
 
 
-    def find_roi_rt(self):
+    def find_apex(self):
         """
         Function to find the retention time of the ROI.
         """
         
-        self.rt = self.rt_seq[np.argmax(self.int_seq)]
-        self.scan_number = self.scan_idx_seq[np.argmax(self.int_seq)]
+        tmp = max(range(len(self.int_seq)), key=self.int_seq.__getitem__)
 
-    
-    def find_roi_height(self):
-        """
-        Function to find the peak height of the ROI.
-        """
-
-        self.peak_height = np.max(self.int_seq)
+        self.rt = self.rt_seq[tmp]
+        self.scan_number = self.scan_idx_seq[tmp]
+        self.peak_height = self.int_seq[tmp]
+        self.mz = self.mz_seq[tmp]
 
     
     def find_roi_area(self):
@@ -374,11 +371,9 @@ class Roi:
             self.rt_seq = self.rt_seq[:(1-counter)]
             self.scan_idx_seq = self.scan_idx_seq[:(1-counter)]
         
-        self.find_roi_rt()
-        self.find_roi_height()
+        self.find_apex()
         self.find_roi_area()
-        self.find_roi_height_by_ave()
-        self.mz = self.mz_seq[np.argmax(self.int_seq)]
+        # self.find_roi_height_by_ave()
         self.length = len(self.mz_seq)
     
 
@@ -415,6 +410,6 @@ class Roi:
 
         if len(self.ms2_seq) > 1:
             total_ints = [np.sum(ms2.prod_int_seq) for ms2 in self.ms2_seq]
-            self.best_ms2 = self.ms2_seq[np.argmax(total_ints)]
+            self.best_ms2 = self.ms2_seq[max(range(len(total_ints)), key=total_ints.__getitem__)]
         elif len(self.ms2_seq) == 1:
             self.best_ms2 = self.ms2_seq[0]

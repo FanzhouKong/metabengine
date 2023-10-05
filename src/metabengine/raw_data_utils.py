@@ -88,8 +88,8 @@ class MSData:
         """
 
         idx = 0     # Scan number
-        self.ms1_idx = np.array([], dtype=int)   # MS1 scan index
-        self.ms2_idx = np.array([], dtype=int)   # MS2 scan index
+        self.ms1_idx = []   # MS1 scan index
+        self.ms2_idx = []   # MS2 scan index
 
         rt_unit = spectra[0]['scanList']['scan'][0]['scan start time'].unit_info
 
@@ -112,7 +112,7 @@ class MSData:
                     int_array = spec['intensity array']
 
                     temp_scan.add_info_by_level(mz_seq=mz_array, int_seq=int_array)
-                    self.ms1_idx = np.append(self.ms1_idx, idx)
+                    self.ms1_idx.append(idx)
 
                     # update base peak chromatogram
                     self.bpc_int = np.append(self.bpc_int, np.max(spec['intensity array']))
@@ -127,14 +127,13 @@ class MSData:
                         prod_mz_seq = prod_mz_seq[prod_int_seq > np.max(prod_int_seq)*0.01]
                         prod_int_seq = prod_int_seq[prod_int_seq > np.max(prod_int_seq)*0.01]
                     temp_scan.add_info_by_level(precs_mz=precs_mz, prod_mz_seq=prod_mz_seq, prod_int_seq=prod_int_seq)
-                    self.ms2_idx = np.append(self.ms2_idx, idx)
+                    self.ms2_idx.append(idx)
                 
                 self.scans.append(temp_scan)
                 idx += 1
 
         # print the number of extracted ms1 and ms2 scans
-        print("Number of extracted MS1 scans: " + str(len(self.ms1_idx)))
-        print("Number of extracted MS2 scans: " + str(len(self.ms2_idx)))
+        print(str(len(self.ms1_idx)) + " MS1 and " + str(len(self.ms2_idx)) + " MS2 scans extracted.")
 
 
     def extract_scan_mzxml(self, spectra, params):
@@ -150,8 +149,8 @@ class MSData:
         """
 
         idx = 0     # Scan number
-        self.ms1_idx = np.array([], dtype=int)   # MS1 scan index
-        self.ms2_idx = np.array([], dtype=int)   # MS2 scan index
+        self.ms1_idx = []   # MS1 scan index
+        self.ms2_idx = []   # MS2 scan index
 
         rt_unit = spectra[0]['scanList']['scan'][0]['scan start time'].unit_info
 
@@ -171,7 +170,7 @@ class MSData:
                     int_array = spec['intensity array']
 
                     temp_scan.add_info_by_level(mz_seq=mz_array, int_seq=int_array)
-                    self.ms1_idx = np.append(self.ms1_idx, idx)
+                    self.ms1_idx.append(idx)
 
                     # update base peak chromatogram
                     self.bpc_int = np.append(self.bpc_int, np.max(spec['intensity array']))
@@ -186,14 +185,13 @@ class MSData:
                         prod_mz_seq = prod_mz_seq[prod_int_seq > np.max(prod_int_seq)*0.01]
                         prod_int_seq = prod_int_seq[prod_int_seq > np.max(prod_int_seq)*0.01]
                     temp_scan.add_info_by_level(precs_mz=precs_mz, prod_mz_seq=prod_mz_seq, prod_int_seq=prod_int_seq)
-                    self.ms2_idx = np.append(self.ms2_idx, idx)
+                    self.ms2_idx.append(idx)
                 
                 self.scans.append(temp_scan)
                 idx += 1
 
         # print the number of extracted ms1 and ms2 scans
-        print("Number of extracted MS1 scans: " + str(len(self.ms1_idx)))
-        print("Number of extracted MS2 scans: " + str(len(self.ms2_idx)))
+        print(str(len(self.ms1_idx)) + " MS1 and " + str(len(self.ms2_idx)) + " MS2 scans extracted.")
 
     
     def drop_ion_by_int(self, params):
