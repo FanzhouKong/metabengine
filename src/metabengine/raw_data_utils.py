@@ -57,6 +57,8 @@ class MSData:
             A Params object that contains the parameters.
         """
 
+        self.params = params
+
         if os.path.isfile(file_name):
             # get extension from file name
             ext = os.path.splitext(file_name)[1]
@@ -209,7 +211,7 @@ class MSData:
             self.scans[idx].int_seq = self.scans[idx].int_seq[self.scans[idx].int_seq > params.int_tol]
     
 
-    def find_rois(self, params):
+    def find_rois(self):
         """
         Function to find ROI in MS1 scans.
 
@@ -219,26 +221,21 @@ class MSData:
             A Params object that contains the parameters.
         """
 
-        self.rois = peak_detect.roi_finder(self, params)
+        self.rois = peak_detect.roi_finder(self, self.params)
 
         print("Number of regular ROIs: " + str(len(self.rois)))
     
 
-    def cut_rois(self, params):
+    def cut_rois(self):
         """
         Function to cut ROI into smaller pieces.
-
-        Parameters
-        ----------------------------------------------------------
-        params: Params object
-            A Params object that contains the parameters.
         """
 
         small_rois = []
         to_be_removed = []
 
         for i, roi in enumerate(self.rois):
-            positions = peak_detect.find_roi_cut(roi, params)
+            positions = peak_detect.find_roi_cut(roi, self.params)
             
             if positions is not None:
 
@@ -268,12 +265,7 @@ class MSData:
         """
 
         # 1. sort ROI by m/z
-        self.rois_mz_seq = np.array([roi.mz for roi in self.rois])
-        self.rois_rt_seq = np.array([roi.rt for roi in self.rois])
-        order = np.argsort(self.rois_mz_seq)
-        self.rois = [self.rois[i] for i in order]
-        self.rois_mz_seq = self.rois_mz_seq[order]
-        self.rois_rt_seq = self.rois_rt_seq[order]
+        self.rois.sort(key=lambda x: x.mz)
 
         for roi in self.rois:
             # 1. find roi quality by length
@@ -288,40 +280,6 @@ class MSData:
         if discard_short_roi:
             self.rois = [roi for roi in self.rois if roi.quality == 'good']
             print("Number of regular ROIs after discarding short ROIs: " + str(len(self.rois)))
-
-
-    def find_roi_quality_by_length(self, params):
-        """
-        Function to find the quality of each ROI by its length.
-
-        Parameters
-        ----------------------------------------------------------
-        params: Params object
-            A Params object that contains the parameters.
-        """
-        
-        for roi in self.rois:
-            if len(roi.mz_seq) >= params.min_ion_num:
-                roi.quality = 'good'
-            else:
-                roi.quality = 'short'
-    
-
-    def sort_rois_by_rt(self):
-        """
-        Function to sort rois by rt.
-        """
-
-        self.rois.sort(key=lambda x: x.rt)
-    
-
-    def clean_rois_single_ms2(self):
-        """
-        Function to clean rois by selecting the best MS2 scan (highest total intensity).
-        """
-
-        for roi in self.rois:
-            roi.keep_single_ms2()
     
 
     def plot_bpc(self, output=False):

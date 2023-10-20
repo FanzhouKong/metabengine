@@ -374,7 +374,10 @@ class Roi:
         self.find_apex()
         self.find_roi_area()
         # self.find_roi_height_by_ave()
-        self.length = len(self.mz_seq)
+        self.length = 0
+        for i in self.int_seq:
+            if i != 0:
+                self.length += 1
     
 
     def subset_roi(self, start, end):
@@ -409,7 +412,7 @@ class Roi:
         """
 
         if len(self.ms2_seq) > 1:
-            total_ints = [np.sum(ms2.prod_int_seq) for ms2 in self.ms2_seq]
+            total_ints = [np.sum(ms2.prod_int_seq[ms2.prod_int_seq < self.mz]) for ms2 in self.ms2_seq]
             self.best_ms2 = self.ms2_seq[max(range(len(total_ints)), key=total_ints.__getitem__)]
         elif len(self.ms2_seq) == 1:
             self.best_ms2 = self.ms2_seq[0]

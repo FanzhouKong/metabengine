@@ -59,6 +59,10 @@ def calculate_mz_for_adducts(formula, adduct):
 
     return (mz - charge_state*ELECTRON_MASS) / abs(charge_state)
 
+def calculate_mono_mass(formula):
+    
+    return calculate_mass(formula)
+
 
 
 _mass_offset = {

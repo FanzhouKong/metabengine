@@ -111,12 +111,12 @@ def lcb_workflow(data_dir, sample_type, ion_mode, create_sub_folders=False, outp
         d = feat_detection(file_name, params=params, cut_roi=cut_roi, output_single_file=output_single_file)
 
         # find the selected anchors (internal standards) in the file by m/z, rt, intensity, and MS/MS spectra (if available)
-        matched_mzs, matched_rts, _ = find_itsd_from_rois(d, istd_training)
+        matched_mzs, matched_rts, matched_roi_idx = find_itsd_from_rois(d, istd_training)
 
         # if run validation, find the corrected m/z and retention time for the internal standards in the validation set
         if validation:
-            matched_mzs_val, matched_rts_val, matched_roi_idx = find_itsd_from_rois(d, istd_validation)
-            if None in matched_roi_idx:
+            matched_mzs_val, matched_rts_val, matched_roi_idx_val = find_itsd_from_rois(d, istd_validation)
+            if None in matched_roi_idx_val:
                 k = np.where(matched_roi_idx == None)
                 return k, istd_validation
             else:
@@ -505,8 +505,7 @@ def correct_retention_time(d, matched_rts, istd_training, method="smooth_spline"
         y = np.delete(y, idx)
 
     if method=="smooth_spline":
-        tck = splrep(x, y, s=1)
-        d.rois_rt_seq = BSpline(*tck)(d.rois_rt_seq)
+        d.rois_rt_seq = pchip_interpolate(x, y, d.rois_rt_seq)
 
     if method=="linear_interp":
         f = interp1d(x, y)
@@ -559,18 +558,11 @@ def correct_mz(d, matched_mzs, istd_training, method="smooth_spline"):
     y = y[idx]
 
     if method=="smooth_spline":
-        try:
-            tck = splrep(x, y, s=len(x)*0.0001)
-            d.rois_mz_seq = BSpline(*tck)(d.rois_mz_seq)
-        except:
-            print(x, y)
+        d.rois_mz_seq = pchip_interpolate(x, y, d.rois_mz_seq)
     
     if method=="linear_interp":
-        try:
-            f = interp1d(x, y)
-            d.rois_mz_seq = f(d.rois_mz_seq)
-        except:
-            print(x, y)
+        f = interp1d(x, y)
+        d.rois_mz_seq = f(d.rois_mz_seq)
 
     if method=="linear_regression":
         reg = LinearRegression().fit(x.reshape(-1, 1), y)

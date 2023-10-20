@@ -10,7 +10,7 @@ from .feature_grouping import annotate_isotope
 from .alignment import alignement
 import pickle
 
-def feat_detection(file_name, params=None, cut_roi=True, pred_quality_NN=False, anno_isotope=False, output_single_file=False, discard_short_roi=False):
+def feat_detection(file_name, params, cut_roi=True, output_single_file=False, discard_short_roi=False):
     """
     A function to detect features from a raw file.
 
@@ -31,37 +31,15 @@ def feat_detection(file_name, params=None, cut_roi=True, pred_quality_NN=False, 
     # create a MSData object1
     d = raw.MSData()
 
-    if params is None:
-        estimate_params = True
-        # create a Params object
-        params = Params()
-    else:
-        params = params
-        estimate_params = False
-
     d.read_raw_data(file_name, params)  # read raw data
 
-    if estimate_params:
-        params.estimate_params(d, estimate_mz_tol=False, estimate_int_tol=True) # estimate intensity tolerance for noise filtering
-    
-    d.drop_ion_by_int(params)   # drop ions by intensity
-
-    if estimate_params:
-        params.estimate_params(d, estimate_mz_tol=True, estimate_int_tol=False) # estimate m/z tolerance for peak picking
-    d.params = params   # assign the params object to the MSData object
-
-    d.find_rois(params) # find ROIs
+    d.find_rois() # find ROIs
 
     if cut_roi:
-        d.cut_rois(params)  # cut ROIs
+        d.cut_rois()  # cut ROIs
 
     # sort ROI by m/z, find roi quality by length, find the best MS2
     d.process_rois(params, discard_short_roi=discard_short_roi)
-
-    if pred_quality_NN:
-        predict_quality(d)
-    if anno_isotope:
-        annotate_isotope(d, params)
 
     if output_single_file:
         d.output_roi_report(output_single_file)
@@ -69,7 +47,7 @@ def feat_detection(file_name, params=None, cut_roi=True, pred_quality_NN=False, 
     return d
 
 
-def process_files(file_names, params=None, output_single_file=False, discard_short_roi=False, output_aligned_file=None):
+def process_files(file_names, params, output_single_file=False, discard_short_roi=False, output_aligned_file=None):
 
     feature_list = []
 
@@ -92,7 +70,7 @@ def process_files(file_names, params=None, output_single_file=False, discard_sho
     return feature_list
 
 
-def read_raw_file_to_obj(file_name, estimate_param=False):
+def read_raw_file_to_obj(file_name):
     """
     Read a raw file and return a MSData object.
 
@@ -107,9 +85,5 @@ def read_raw_file_to_obj(file_name, estimate_param=False):
     d = raw.MSData()
     params = Params()
     d.read_raw_data(file_name, params)
-
-    if estimate_param:
-        params.estimate_params(d)
-        d.params = params
     
     return d
