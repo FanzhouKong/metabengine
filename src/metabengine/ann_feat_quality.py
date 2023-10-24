@@ -6,10 +6,10 @@
 # Import modules
 import numpy as np
 from scipy.interpolate import interp1d
-from keras.models import model_from_json
+import os
 
 
-def predict_quality(d, threshold=0.5):
+def predict_quality(d, model, threshold=0.5):
     """
     Function to predict the quality of a feature as an ROI.
 
@@ -18,9 +18,6 @@ def predict_quality(d, threshold=0.5):
     d: MSData object
         An MSData object that contains the MS data.
     """
-
-    model = model_from_json(open('model/model_architecture.json').read())
-    model.load_weights('model/model_weights.h5')
 
     temp = np.array([peak_interpolation(roi.int_seq) for roi in d.rois])
     q = model.predict(temp, verbose=0)[:,0] > threshold

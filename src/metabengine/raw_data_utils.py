@@ -316,14 +316,14 @@ class MSData:
         result = []
         for roi in self.rois:
             roi.sum_roi()
-            temp = np.array([roi.mz, roi.rt, roi.length, roi.peak_area, roi.peak_height, roi.peak_height_by_ave])
+            temp = np.array([roi.mz, roi.rt, roi.length, roi.peak_area, roi.peak_height, roi.peak_height_by_ave, roi.quality])
             result.append(temp)
 
         # convert the result to a numpy array
         result = np.array(result)
 
         # convert result to a pandas dataframe
-        df = pd.DataFrame(result, columns=['mz', 'rt', 'length', 'peak_area', 'peak_height', 'peak_height_by_ave'])
+        df = pd.DataFrame(result, columns=['mz', 'rt', 'length', 'peak_area', 'peak_height', 'peak_height_by_ave', 'quality'])
 
         # save the dataframe to csv file
         path = path + self.file_name + ".csv"

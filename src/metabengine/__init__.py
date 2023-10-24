@@ -9,8 +9,10 @@ from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope
 from .alignment import alignement
 import pickle
+import os
+from keras.models import load_model
 
-def feat_detection(file_name, params, cut_roi=True, output_single_file=False, discard_short_roi=False):
+def feat_detection(file_name, params, cut_roi=True, output_single_file_path=None, discard_short_roi=False):
     """
     A function to detect features from a raw file.
 
@@ -22,8 +24,8 @@ def feat_detection(file_name, params, cut_roi=True, output_single_file=False, di
         Whether to predict the quality of the features. The default is False.
     anno_isotope : bool
         Whether to annotate the isotopes. The default is False.
-    output_single_file : bool
-        Whether to output the feature report to a single file. The default is False.
+    output_single_file_path : str
+        The path to the output file. The default is None.
     path : str
         The path to the output file. The default is None.    
     """
@@ -41,8 +43,11 @@ def feat_detection(file_name, params, cut_roi=True, output_single_file=False, di
     # sort ROI by m/z, find roi quality by length, find the best MS2
     d.process_rois(params, discard_short_roi=discard_short_roi)
 
-    if output_single_file:
-        d.output_roi_report(output_single_file)
+    # predict feature quality
+    predict_quality(d)
+
+    if output_single_file_path:
+        d.output_roi_report(output_single_file_path)
 
     return d
 
@@ -50,6 +55,10 @@ def feat_detection(file_name, params, cut_roi=True, output_single_file=False, di
 def process_files(file_names, params, output_single_file=False, discard_short_roi=False, output_aligned_file=None):
 
     feature_list = []
+
+    data_path = os.path.join(os.path.dirname(__file__), 'data', "peak_quality_NN.keras")
+
+    model = load_model(data_path)
 
     for file_name in file_names:
         d = feat_detection(file_name, params=params, output_single_file=output_single_file, discard_short_roi=discard_short_roi)

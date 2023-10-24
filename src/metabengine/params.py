@@ -22,7 +22,8 @@ class Params:
         self.proj_dir = None    # Project directory, character string
         self.ms2_sim_tol = 0.7  # MS2 similarity tolerance
         self.mode = "dda"   # Acquisition mode, "dda", "dia", or "full_scan"
-        self.ion_mode = "pos"   # Ionization mode, "pos", "neg" or "mixed"
+        self.ion_mode = "pos"   # Ionization mode, "pos" or "neg"
+        self.output_single_file_path = None
 
         # Will be estimated by the program
         self.mz_tol_ms1 = 0.008
