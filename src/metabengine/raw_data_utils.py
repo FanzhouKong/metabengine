@@ -63,7 +63,7 @@ class MSData:
             # get extension from file name
             ext = os.path.splitext(file_name)[1]
 
-            self.file_name = file_name.split('/')[-1].split('.')[0]
+            self.file_name = os.path.splitext(os.path.basename(file_name))[0]
 
             if ext.lower() == ".mzml":
                 with mzml.MzML(file_name) as reader:
@@ -469,11 +469,43 @@ class MSData:
         if output:
             plt.savefig(output, dpi=300, bbox_inches="tight")
             plt.close()
+            return None
         else:
             plt.show()
-        
-        return eic_rt[np.argmax(eic_int)], np.max(eic_int), eic_scan_idx[np.argmax(eic_int)]
+            return eic_rt[np.argmax(eic_int)], np.max(eic_int), eic_scan_idx[np.argmax(eic_int)]
 
+
+    def plot_all_rois(self, output_path, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None):
+        """
+        Function to plot EIC of all ROIs.
+        """
+
+        for roi in self.rois:
+
+            if rt_window is not None:
+                rt_range = [roi.rt - rt_window, roi.rt + rt_window]
+
+            # get the eic data
+            eic_rt, eic_int, _, eic_scan_idx = self.get_eic_data(roi.mz, mz_tol=mz_tol, rt_range=rt_range)
+            idx_start = np.where(eic_scan_idx == roi.scan_idx_seq[0])[0][0]
+            idx_end = np.where(eic_scan_idx == roi.scan_idx_seq[-1])[0][0] + 1
+
+            plt.figure(figsize=(9, 3))
+            plt.rcParams['font.size'] = 14
+            plt.rcParams['font.family'] = 'Arial'
+            plt.plot(eic_rt, eic_int, linewidth=1, color="black")
+            plt.fill_between(eic_rt[idx_start:idx_end], eic_int[idx_start:idx_end], color="black", alpha=0.2)
+            plt.xlabel("Retention Time (min)", fontsize=18, fontname='Arial')
+            plt.ylabel("Intensity", fontsize=18, fontname='Arial')
+            plt.xticks(fontsize=14, fontname='Arial')
+            plt.yticks(fontsize=14, fontname='Arial')
+            plt.text(eic_rt[0] + (eic_rt[-1]-eic_rt[0])*0.4, np.max(eic_int)*0.8, "m/z = {:.4f}".format(roi.mz), fontsize=18, fontname='Arial')
+            plt.text(eic_rt[0] + (eic_rt[-1]-eic_rt[0])*0.6, np.max(eic_int)*0.95, d.file_name, fontsize=10, fontname='Arial', color="gray")
+
+            file_name = output_path + "roi_" + str(roi.mz.__round__(4)) + ".png"
+
+            plt.savefig(file_name, dpi=300, bbox_inches="tight")
+            plt.close()
 
 
 class Scan:

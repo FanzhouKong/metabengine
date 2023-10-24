@@ -46,6 +46,12 @@ def feat_detection(file_name, params, cut_roi=True, output_single_file_path=None
     # predict feature quality
     predict_quality(d)
 
+    # # annotate isotopes, adducts, and in-source fragments
+    # d.annotate_isotope()
+    # d.annotate_adduct()
+    # d.annotate_in_source_fragment()
+
+    # output single file
     if output_single_file_path:
         d.output_roi_report(output_single_file_path)
 
@@ -96,3 +102,21 @@ def read_raw_file_to_obj(file_name):
     d.read_raw_data(file_name, params)
     
     return d
+
+
+def untargeted_workflow(parameters):
+    """
+    A function for the untargeted metabolomics workflow.
+
+    Parameters
+    ----------
+    parameters : Params object
+        The parameters for the workflow.
+    """
+
+    # Check the folder for creating the project
+    if not os.path.exists(parameters.project_dir):
+        raise ValueError("The project directory does not exist.")
+    
+    # Check if raw files exist
+

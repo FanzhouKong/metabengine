@@ -85,7 +85,7 @@ def plot_roi(d, roi, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None, output=F
     if output:
         plt.savefig(output, dpi=300, bbox_inches="tight")
         plt.close()
+        return None
     else:
         plt.show()
-    
-    return eic_rt[np.argmax(eic_int)], np.max(eic_int), eic_scan_idx[np.argmax(eic_int)]
+        return eic_rt[np.argmax(eic_int)], np.max(eic_int), eic_scan_idx[np.argmax(eic_int)]
