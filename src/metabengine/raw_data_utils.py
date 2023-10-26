@@ -67,17 +67,17 @@ class MSData:
 
             if ext.lower() == ".mzml":
                 with mzml.MzML(file_name) as reader:
-                    self.extract_scan_mzml(reader, params=params)
+                    self.extract_scan_mzml(reader)
             elif ext.lower() == ".mzxml":
                 with mzxml.MzXML(file_name) as reader:
-                    self.extract_scan_mzxml(reader, params=params)
+                    self.extract_scan_mzxml(reader)
             else:
                 print("Unsupported raw data format. Raw data must be in mzML or mzXML.")
         else:
             print("File does not exist.")
 
 
-    def extract_scan_mzml(self, spectra, params):
+    def extract_scan_mzml(self, spectra):
         """
         Function to extract all scans and convert them to Scan objects.
 
@@ -85,8 +85,6 @@ class MSData:
         ----------------------------------------------------------
         spectra: pyteomics object
             An iteratable object that contains all MS1 and MS2 scans.
-        params: Params object
-            A Params object that contains the parameters.
         """
 
         idx = 0     # Scan number
@@ -107,7 +105,7 @@ class MSData:
                 rt = rt / 60
 
             # Check if the retention time is within the range
-            if params.rt_range[0] < rt < params.rt_range[1]:
+            if self.params.rt_range[0] < rt < self.params.rt_range[1]:
                 if spec['ms level'] == 1:
                     temp_scan = Scan(level=1, scan=idx, rt=rt)
                     mz_array = spec['m/z array']
@@ -138,7 +136,7 @@ class MSData:
         print(str(len(self.ms1_idx)) + " MS1 and " + str(len(self.ms2_idx)) + " MS2 scans extracted.")
 
 
-    def extract_scan_mzxml(self, spectra, params):
+    def extract_scan_mzxml(self, spectra):
         """
         Function to extract all scans and convert them to Scan objects.
 
@@ -146,8 +144,6 @@ class MSData:
         ----------------------------------------------------------
         spectra: pyteomics object
             An iteratable object that contains all MS1 and MS2 scans.
-        params: Params object
-            A Params object that contains the parameters.
         """
 
         idx = 0     # Scan number
@@ -165,7 +161,7 @@ class MSData:
                 rt = rt / 60
 
             # Check if the retention time is within the range
-            if params.rt_range[0] < rt < params.rt_range[1]:
+            if self.params.rt_range[0] < rt < self.params.rt_range[1]:
                 if spec['msLevel'] == 1:
                     temp_scan = Scan(level=1, scan=idx, rt=rt)
                     mz_array = spec['m/z array']
@@ -196,7 +192,7 @@ class MSData:
         print(str(len(self.ms1_idx)) + " MS1 and " + str(len(self.ms2_idx)) + " MS2 scans extracted.")
 
     
-    def drop_ion_by_int(self, params):
+    def drop_ion_by_int(self):
         """
         Function to drop ions by intensity.
 
@@ -207,8 +203,8 @@ class MSData:
         """
 
         for idx in self.ms1_idx:
-            self.scans[idx].mz_seq = self.scans[idx].mz_seq[self.scans[idx].int_seq > params.int_tol]
-            self.scans[idx].int_seq = self.scans[idx].int_seq[self.scans[idx].int_seq > params.int_tol]
+            self.scans[idx].mz_seq = self.scans[idx].mz_seq[self.scans[idx].int_seq > self.params.int_tol]
+            self.scans[idx].int_seq = self.scans[idx].int_seq[self.scans[idx].int_seq > self.params.int_tol]
     
 
     def find_rois(self):
@@ -254,7 +250,7 @@ class MSData:
         # print("Number of regular ROIs: " + str(len(self.rois)))
         # print("Number of short ROIs: " + str(len(self.rois_short)))
 
-    def process_rois(self, params, discard_short_roi=False):
+    def process_rois(self):
         """
         Function to process ROIs.
 
@@ -269,7 +265,7 @@ class MSData:
 
         for roi in self.rois:
             # 1. find roi quality by length
-            if roi.length >= params.min_ion_num:
+            if roi.length >= self.params.min_ion_num:
                 roi.quality = 'good'
             else:
                 roi.quality = 'short'
@@ -277,8 +273,8 @@ class MSData:
             # 2. find the best MS2
             roi.find_best_ms2()
         
-        if discard_short_roi:
-            self.rois = [roi for roi in self.rois if roi.quality == 'good']
+        if self.params.discard_short_roi:
+            self.rois = [roi for roi in self.rois if roi.quality != 'short']
             print("Number of regular ROIs after discarding short ROIs: " + str(len(self.rois)))
     
 
@@ -480,10 +476,10 @@ class MSData:
         Function to plot EIC of all ROIs.
         """
 
-        for roi in self.rois:
+        for idx, roi in enumerate(self.rois):
 
             if rt_window is not None:
-                rt_range = [roi.rt - rt_window, roi.rt + rt_window]
+                rt_range = [roi.rt_seq[0] - rt_window, roi.rt_seq[-1] + rt_window]
 
             # get the eic data
             eic_rt, eic_int, _, eic_scan_idx = self.get_eic_data(roi.mz, mz_tol=mz_tol, rt_range=rt_range)
@@ -493,16 +489,18 @@ class MSData:
             plt.figure(figsize=(9, 3))
             plt.rcParams['font.size'] = 14
             plt.rcParams['font.family'] = 'Arial'
-            plt.plot(eic_rt, eic_int, linewidth=1, color="black")
+            plt.plot(eic_rt, eic_int, linewidth=0.5, color="black")
             plt.fill_between(eic_rt[idx_start:idx_end], eic_int[idx_start:idx_end], color="black", alpha=0.2)
+            plt.axvline(x = roi.rt, color = 'b', linestyle = '--', linewidth=1)
             plt.xlabel("Retention Time (min)", fontsize=18, fontname='Arial')
             plt.ylabel("Intensity", fontsize=18, fontname='Arial')
             plt.xticks(fontsize=14, fontname='Arial')
             plt.yticks(fontsize=14, fontname='Arial')
-            plt.text(eic_rt[0] + (eic_rt[-1]-eic_rt[0])*0.4, np.max(eic_int)*0.8, "m/z = {:.4f}".format(roi.mz), fontsize=18, fontname='Arial')
-            plt.text(eic_rt[0] + (eic_rt[-1]-eic_rt[0])*0.6, np.max(eic_int)*0.95, d.file_name, fontsize=10, fontname='Arial', color="gray")
+            plt.text(eic_rt[0], np.max(eic_int)*0.95, "m/z = {:.4f}".format(roi.mz), fontsize=12, fontname='Arial')
+            plt.text(eic_rt[0] + (eic_rt[-1]-eic_rt[0])*0.2, np.max(eic_int)*0.95, "Quality = {}".format(roi.quality), fontsize=12, fontname='Arial', color="blue")
+            plt.text(eic_rt[0] + (eic_rt[-1]-eic_rt[0])*0.6, np.max(eic_int)*0.95, self.file_name, fontsize=10, fontname='Arial', color="gray")
 
-            file_name = output_path + "roi_" + str(roi.mz.__round__(4)) + ".png"
+            file_name = output_path + "roi{}_".format(idx) + str(roi.mz.__round__(4)) + ".png"
 
             plt.savefig(file_name, dpi=300, bbox_inches="tight")
             plt.close()

@@ -6,10 +6,9 @@
 # Import modules
 import numpy as np
 from scipy.interpolate import interp1d
-import os
 
 
-def predict_quality(d, model, threshold=0.5):
+def predict_quality(d, model=None, threshold=0.5):
     """
     Function to predict the quality of a feature as an ROI.
 
@@ -19,13 +18,14 @@ def predict_quality(d, model, threshold=0.5):
         An MSData object that contains the MS data.
     """
 
+    if model is None:
+        model = d.params.ann_model
+
     temp = np.array([peak_interpolation(roi.int_seq) for roi in d.rois])
     q = model.predict(temp, verbose=0)[:,0] > threshold
 
     for i in range(len(d.rois)):
-        if q[i] == 1:
-            d.rois[i].quality = 'good'
-        else:
+        if q[i] == 0:
             d.rois[i].quality = 'bad peak shape'
 
 
@@ -39,10 +39,10 @@ def peak_interpolation(peak):
         A numpy array that contains the peak to be interpolated.
     '''
     
-    temp = np.array([0,0])
-    temp = np.insert(temp, 1, peak)
-    peak_interp_rule = interp1d(np.arange(len(temp)), temp, kind='linear')
-    interp_seed = np.linspace(0, len(temp)-1, 64)
+    peak_interp_rule = interp1d(np.arange(len(peak)), peak, kind='linear')
+    interp_seed = np.linspace(0, len(peak)-1, 64)
     peak_interp = peak_interp_rule(interp_seed)
 
-    return(peak_interp)
+    peak_interp = peak_interp / np.max(peak_interp)
+
+    return peak_interp

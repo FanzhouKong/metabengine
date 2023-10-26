@@ -32,7 +32,10 @@ class Params:
         self.mz_tol_ms2 = 0.015   # m/z tolerance for MS2, default is 0.015
         self.int_tol = 1000       # Intensity tolerance, default is 10000 for Orbitrap and 1000 for other instruments
         self.roi_gap = 2          # Gap within a feature, default is 2 (i.e. 2 consecutive scans without signal)
-        self.min_ion_num = 5      # Minimum scan number a feature, default is 5
+        self.min_ion_num = 10      # Minimum scan number a feature, default is 10
+        self.ann_model = None     # Model for feature annotation, keras.src.engine.sequential.Sequential object
+        self.discard_short_roi = False   # Whether to discard short ROI, default is False
+        self.cut_roi = True       # Whether to cut ROI, default is True
 
         # Parameters for feature alignment
         self.align_mz_tol_ms1 = 0.01  # m/z tolerance for MS1, default is 0.01

@@ -12,7 +12,7 @@ import pickle
 import os
 from keras.models import load_model
 
-def feat_detection(file_name, params, cut_roi=True, output_single_file_path=None, discard_short_roi=False):
+def feat_detection(file_name, parameters):
     """
     A function to detect features from a raw file.
 
@@ -20,30 +20,28 @@ def feat_detection(file_name, params, cut_roi=True, output_single_file_path=None
     ----------
     file_name : str
         The file name of the raw file.
-    pred_quality_NN : bool
-        Whether to predict the quality of the features. The default is False.
-    anno_isotope : bool
-        Whether to annotate the isotopes. The default is False.
-    output_single_file_path : str
-        The path to the output file. The default is None.
-    path : str
-        The path to the output file. The default is None.    
+    parameters : Params object
+        The parameters for the workflow.
     """
 
     # create a MSData object1
     d = raw.MSData()
 
-    d.read_raw_data(file_name, params)  # read raw data
+    d.read_raw_data(file_name, parameters)  # read raw data
 
     d.find_rois() # find ROIs
 
-    if cut_roi:
+    if d.params.cut_roi:
         d.cut_rois()  # cut ROIs
 
     # sort ROI by m/z, find roi quality by length, find the best MS2
-    d.process_rois(params, discard_short_roi=discard_short_roi)
+    d.process_rois()
 
     # predict feature quality
+    if d.params.ann_model is None:
+        data_path_ann = os.path.join(os.path.dirname(__file__), 'model', "peak_quality_NN.keras")
+        d.params.ann_model = load_model(data_path_ann)
+
     predict_quality(d)
 
     # # annotate isotopes, adducts, and in-source fragments
@@ -52,8 +50,8 @@ def feat_detection(file_name, params, cut_roi=True, output_single_file_path=None
     # d.annotate_in_source_fragment()
 
     # output single file
-    if output_single_file_path:
-        d.output_roi_report(output_single_file_path)
+    if d.params.output_single_file_path:
+        d.output_roi_report(d.params.output_single_file_path)
 
     return d
 
