@@ -8,7 +8,7 @@ from tqdm import tqdm
 from scipy.signal import argrelextrema
 from .msms import spec_similarity
 import copy
-import time
+
 
 def roi_finder(d, params, **kwargs):
     """
@@ -53,7 +53,6 @@ def roi_finder(d, params, **kwargs):
         visited_idx = []    # A list to store the visited indices of ions in the current MS1 scan
         visited_rois_idx = []   # A list to store the visited indices of rois
 
-        
         # Loop over all current rois
         for i, roi in enumerate(rois):
             
@@ -102,9 +101,6 @@ def roi_finder(d, params, **kwargs):
     # Move all rois to final_rois
     for roi in rois:
         final_rois.append(roi)
-
-    for roi in final_rois:
-        roi.sum_roi()
 
     return final_rois
 
@@ -356,28 +352,29 @@ class Roi:
         Function to summarize the ROI to generate attributes.
         """
 
-        # count the number of zeros in the end of self.int_seq
-        counter = 0
-        for i in range(len(self.int_seq)-1, -1, -1):
-            if self.int_seq[i] == 0:
-                counter += 1
-            else:
-                break
-        
+        end_idx = len(self.int_seq)-1
+
+        while self.int_seq[end_idx] == 0 and self.int_seq[end_idx-1] == 0:
+            end_idx -= 1
+
+        end_idx += 1
+
         # keep one zero in the end of ROI
-        if counter > 1:
-            self.mz_seq = self.mz_seq[:(1-counter)]
-            self.int_seq = self.int_seq[:(1-counter)]
-            self.rt_seq = self.rt_seq[:(1-counter)]
-            self.scan_idx_seq = self.scan_idx_seq[:(1-counter)]
+        self.mz_seq = self.mz_seq[:end_idx]
+        self.int_seq = self.int_seq[:end_idx]
+        self.rt_seq = self.rt_seq[:end_idx]
+        self.scan_idx_seq = self.scan_idx_seq[:end_idx]
         
         self.find_apex()
         self.find_roi_area()
-        # self.find_roi_height_by_ave()
-        self.length = 0
-        for i in self.int_seq:
-            if i != 0:
-                self.length += 1
+
+        tmp = 0
+        if self.int_seq[0] == 0:
+            tmp += 1
+        if self.int_seq[-1] == 0:
+            tmp += 1
+
+        self.length = len(self.int_seq) - tmp
     
 
     def subset_roi(self, start, end):

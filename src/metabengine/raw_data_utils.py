@@ -264,6 +264,8 @@ class MSData:
         self.rois.sort(key=lambda x: x.mz)
 
         for roi in self.rois:
+            roi.sum_roi()
+            
             # 1. find roi quality by length
             if roi.length >= self.params.min_ion_num:
                 roi.quality = 'good'
@@ -272,6 +274,8 @@ class MSData:
             
             # 2. find the best MS2
             roi.find_best_ms2()
+
+
         
         if self.params.discard_short_roi:
             self.rois = [roi for roi in self.rois if roi.quality != 'short']
@@ -310,16 +314,15 @@ class MSData:
         """
 
         result = []
-        for roi in self.rois:
-            roi.sum_roi()
-            temp = np.array([roi.mz, roi.rt, roi.length, roi.peak_area, roi.peak_height, roi.peak_height_by_ave, roi.quality])
+        for idx, roi in enumerate(self.rois):
+            temp = np.array([idx+1, roi.mz, roi.rt, roi.length, roi.peak_area, roi.peak_height, roi.quality])
             result.append(temp)
 
         # convert the result to a numpy array
         result = np.array(result)
 
         # convert result to a pandas dataframe
-        df = pd.DataFrame(result, columns=['mz', 'rt', 'length', 'peak_area', 'peak_height', 'peak_height_by_ave', 'quality'])
+        df = pd.DataFrame(result, columns=['ID', 'mz', 'rt', 'length', 'peak_area', 'peak_height', 'quality'])
 
         # save the dataframe to csv file
         path = path + self.file_name + ".csv"

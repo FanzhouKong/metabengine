@@ -29,6 +29,8 @@ def feat_detection(file_name, parameters):
 
     d.read_raw_data(file_name, parameters)  # read raw data
 
+    d.drop_ion_by_int()
+
     d.find_rois() # find ROIs
 
     if d.params.cut_roi:
