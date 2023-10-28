@@ -25,7 +25,8 @@ def predict_quality(d, model=None, threshold=0.5):
     q = model.predict(temp, verbose=0)[:,0] > threshold
 
     for i in range(len(d.rois)):
-        if q[i] == 0:
+        # if the roi quality is not good, then skip and don't overwrite
+        if d.rois[i].quality == 'good' and q[i] == 0:
             d.rois[i].quality = 'bad peak shape'
 
 

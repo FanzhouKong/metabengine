@@ -474,12 +474,18 @@ class MSData:
             return eic_rt[np.argmax(eic_int)], np.max(eic_int), eic_scan_idx[np.argmax(eic_int)]
 
 
-    def plot_all_rois(self, output_path, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None):
+    def plot_all_rois(self, output_path, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None, quality=None):
         """
         Function to plot EIC of all ROIs.
         """
 
+        if output_path[-1] != "/":
+            output_path += "/"
+
         for idx, roi in enumerate(self.rois):
+
+            if quality and roi.quality != quality:
+                continue
 
             if rt_window is not None:
                 rt_range = [roi.rt_seq[0] - rt_window, roi.rt_seq[-1] + rt_window]
@@ -507,6 +513,28 @@ class MSData:
 
             plt.savefig(file_name, dpi=300, bbox_inches="tight")
             plt.close()
+    
+
+    def sum_roi_quality(self):
+        """
+        Function to calculate the sum of all ROI qualities.
+        """
+
+        counter1 = 0
+        counter2 = 0
+        counter3 = 0
+
+        for r in self.rois:
+            if r.quality == "good":
+                counter1 += 1
+            elif r.quality == "short":
+                counter2 += 1
+            elif r.quality == "bad peak shape":
+                counter3 += 1
+        
+        print("Number of good ROIs: " + str(counter1))
+        print("Number of short ROIs: " + str(counter2))
+        print("Number of bad peak shape ROIs: " + str(counter3))
 
 
 class Scan:
