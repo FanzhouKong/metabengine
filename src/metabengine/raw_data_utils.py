@@ -218,8 +218,6 @@ class MSData:
         """
 
         self.rois = peak_detect.roi_finder(self, self.params)
-
-        print("Number of regular ROIs: " + str(len(self.rois)))
     
 
     def cut_rois(self):

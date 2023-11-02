@@ -178,6 +178,9 @@ def roi_cutter(roi, positions):
         A list of positions to cut the roi.
     """
 
+    for i in positions:
+        roi.int_seq[i] = roi.int_seq[i] / 2
+
     # add a zero and len(int_seq) to positions
     positions = np.insert(np.array([0, len(roi.int_seq)-1]), 1, positions)
 
@@ -258,6 +261,7 @@ class Roi:
         self.peak_area = np.nan
         self.peak_height = np.nan
         self.peak_height_by_ave = np.nan
+        self.total_intensity = np.nan
         self.best_ms2 = None
         self.length = 0
 
@@ -324,6 +328,7 @@ class Roi:
         self.scan_number = self.scan_idx_seq[tmp]
         self.peak_height = self.int_seq[tmp]
         self.mz = self.mz_seq[tmp]
+        self.total_intensity = np.sum(self.int_seq)
 
     
     def find_roi_area(self):
@@ -373,6 +378,9 @@ class Roi:
             tmp += 1
         if self.int_seq[-1] == 0:
             tmp += 1
+        
+        if self.int_seq[0] == 0:
+            self.mz_seq[0] = np.nan
 
         self.length = len(self.int_seq) - tmp
     

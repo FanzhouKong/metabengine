@@ -46,6 +46,8 @@ def feat_detection(file_name, parameters):
 
     predict_quality(d)
 
+    print("Number of regular ROIs: " + str(len(d.rois)))
+
     # # annotate isotopes, adducts, and in-source fragments
     # d.annotate_isotope()
     # d.annotate_adduct()
