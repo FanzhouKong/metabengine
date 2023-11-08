@@ -35,8 +35,8 @@ class MSData:
         """
 
         self.scans = []   # A list of MS scans
-        self.ms1_rt_seq = np.array([])  # Retention times of all MS1 scans
-        self.bpc_int = np.array([]) # Intensity of the BPC
+        self.ms1_rt_seq = []  # Retention times of all MS1 scans
+        self.bpc_int = [] # Intensity of the BPC
         self.rois = []  # A list of ROIs
         self.params = None  # A Params object
         self.rois_mz_seq = None
@@ -115,12 +115,12 @@ class MSData:
                     self.ms1_idx.append(idx)
 
                     # update base peak chromatogram
-                    self.bpc_int = np.append(self.bpc_int, np.max(spec['intensity array']))
-                    self.ms1_rt_seq = np.append(self.ms1_rt_seq, rt)
+                    self.bpc_int.append(np.max(spec['intensity array']))
+                    self.ms1_rt_seq.append(rt)
 
                 elif spec['ms level'] == 2:
                     temp_scan = Scan(level=2, scan=idx, rt=rt)
-                    precs_mz = spec['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['selected ion m/z']
+                    precursor_mz = spec['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['selected ion m/z']
                     prod_int_seq = spec['intensity array']
                     prod_mz_seq = spec['m/z array']
                     if len(prod_int_seq) > 0:
@@ -220,7 +220,7 @@ class MSData:
         self.rois = peak_detect.roi_finder(self, self.params)
     
 
-    def cut_rois(self):
+    def cut_rois(self, return_cut_rois=False):
         """
         Function to cut ROI into smaller pieces.
         """
@@ -228,15 +228,19 @@ class MSData:
         small_rois = []
         to_be_removed = []
 
+        pairs = []
+
         for i, roi in enumerate(self.rois):
             positions = peak_detect.find_roi_cut(roi, self.params)
             
             if positions is not None:
 
                 # append each item in a list to small_rois
-                small_rois.extend(peak_detect.roi_cutter(roi, positions))
-
+                small_rois_tmp = peak_detect.roi_cutter(roi, positions)
+                small_rois.extend(small_rois_tmp)
                 to_be_removed.append(i)
+
+                pairs.append([roi, small_rois_tmp])
         
         # remove the original rois
         for i in sorted(to_be_removed, reverse=True):
@@ -245,8 +249,9 @@ class MSData:
         # append the small rois to the original rois
         self.rois.extend(small_rois)
 
-        # print("Number of regular ROIs: " + str(len(self.rois)))
-        # print("Number of short ROIs: " + str(len(self.rois_short)))
+        if return_cut_rois:
+            return pairs
+
 
     def process_rois(self):
         """

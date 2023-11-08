@@ -105,7 +105,7 @@ def roi_finder(d, params, **kwargs):
     return final_rois
 
 
-def find_roi_cut(roi, params, **kwargs):
+def find_roi_cut(roi, params):
     """
     A function to find place to cut an roi based on ion identity.
     An roi will be cut only if it has
@@ -136,9 +136,9 @@ def find_roi_cut(roi, params, **kwargs):
             cut_positions = np.insert(np.array([0, len(roi.int_seq)-1]), 1, cut_positions)
 
             for i in range(len(cut_positions)-2):
-                scan_idx1 = roi.scan_idx_seq[i]
-                scan_idx2 = roi.scan_idx_seq[i+1]
-                scan_idx3 = roi.scan_idx_seq[i+2]
+                scan_idx1 = roi.scan_idx_seq[cut_positions[i]]
+                scan_idx2 = roi.scan_idx_seq[cut_positions[i+1]]
+                scan_idx3 = roi.scan_idx_seq[cut_positions[i+2]]
 
                 ms2_left = []
                 ms2_right = []
@@ -188,7 +188,7 @@ def roi_cutter(roi, positions):
 
     for i in range(len(positions)-1):
         fst = positions[i]
-        snd = positions[i+1]
+        snd = positions[i+1]+1
         temp = copy.deepcopy(roi)
         temp.subset_roi(fst, snd)
         rois.append(temp)

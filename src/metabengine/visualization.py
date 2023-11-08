@@ -89,3 +89,17 @@ def plot_roi(d, roi, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None, output=F
         plt.close()
     else:
         plt.show()
+
+
+def plot_hist(arr, bins, x_label, y_label):
+
+    plt.figure(figsize=(6, 3))
+    plt.rcParams['font.size'] = 14
+    plt.rcParams['font.family'] = 'Arial'
+    plt.hist(arr, bins=bins, color='lightgrey', edgecolor='black', linewidth=0.5)
+    plt.xlabel(x_label, fontsize=18, fontname='Arial')
+    plt.ylabel(y_label, fontsize=18, fontname='Arial')
+    plt.xticks(fontsize=14, fontname='Arial')
+    plt.yticks(fontsize=14, fontname='Arial')
+
+    plt.show()

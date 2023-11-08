@@ -7,7 +7,7 @@ import numpy as np
 from . import raw_data_utils
 
 
-def spec_similarity(spec1, spec2, mz_tol=0.01, sim_method='cosine', search_type='exact', filter_low_int=True, filter_low_int_ratio=0.01, exclude_precursor=True, remove_precursor_mz=1.6):
+def spec_similarity(spec1, spec2, mz_tol=0.01, sim_method='cosine', search_type='exact', filter_low_int=True, filter_low_int_ratio=0.01, exclude_precs=True, exclude_precs_mass=0.2):
     '''
     A function to calculate the dot product of two mass spectra.
 
@@ -31,23 +31,25 @@ def spec_similarity(spec1, spec2, mz_tol=0.01, sim_method='cosine', search_type=
         'hybrid': hybrid search.
     filter_low_int: bool
         Whether to filter out low intensity peaks. Default is True.
-    exclude_precursor: bool
+    exclude_precs: bool
         Whether to exclude precursor peak in MS/MS for similarity calculation. Default is True.
+    exclude_precs_mass: float
+        The ions with m/z below precursor mass minus this value will be excluded. Default is 0.2.
     '''
 
     # if spec1 and spec2 are dictionaries, convert them to Spectrum objects
     if isinstance(spec1, dict):
         tmp = raw_data_utils.Scan()
-        tmp.precs_mz = spec1['PrecursorMZ']
-        tmp.prod_mz_seq = spec1['prodMZ']
-        tmp.prod_int_seq = spec1['prodIntensity']
+        tmp.precs_mz = spec1['precs_mz']
+        tmp.prod_mz_seq = spec1['prod_mz_seq']
+        tmp.prod_int_seq = spec1['prod_int_seq']
         spec1 = tmp
 
     if isinstance(spec2, dict):
         tmp = raw_data_utils.Scan()
-        tmp.precs_mz = spec2['PrecursorMZ']
-        tmp.prod_mz_seq = spec2['prodMZ']
-        tmp.prod_int_seq = spec2['prodIntensity']
+        tmp.precs_mz = spec2['precs_mz']
+        tmp.prod_mz_seq = spec2['prod_mz_seq']
+        tmp.prod_int_seq = spec2['prod_int_seq']
         spec2 = tmp
 
 
@@ -60,18 +62,18 @@ def spec_similarity(spec1, spec2, mz_tol=0.01, sim_method='cosine', search_type=
     int2= spec2.prod_int_seq
 
     # remove precursor peak
-    if exclude_precursor:
+    if exclude_precs:
         if search_type == 'hybrid':
             smaller_mz = np.min([spec1.precs_mz, spec2.precs_mz])
-            int1= int1[mz1 < smaller_mz-remove_precursor_mz]
-            int2= int2[mz2 < smaller_mz-remove_precursor_mz]
-            mz1 = mz1[mz1 < smaller_mz-remove_precursor_mz]
-            mz2 = mz2[mz2 < smaller_mz-remove_precursor_mz]
+            int1= int1[mz1 < smaller_mz-exclude_precs_mass]
+            int2= int2[mz2 < smaller_mz-exclude_precs_mass]
+            mz1 = mz1[mz1 < smaller_mz-exclude_precs_mass]
+            mz2 = mz2[mz2 < smaller_mz-exclude_precs_mass]
         else:
-            int1= int1[mz1 < spec1.precs_mz-remove_precursor_mz]
-            int2= int2[mz2 < spec2.precs_mz-remove_precursor_mz]
-            mz1 = mz1[mz1 < spec1.precs_mz-remove_precursor_mz]
-            mz2 = mz2[mz2 < spec2.precs_mz-remove_precursor_mz]
+            int1= int1[mz1 < spec1.precs_mz-exclude_precs_mass]
+            int2= int2[mz2 < spec2.precs_mz-exclude_precs_mass]
+            mz1 = mz1[mz1 < spec1.precs_mz-exclude_precs_mass]
+            mz2 = mz2[mz2 < spec2.precs_mz-exclude_precs_mass]
     
     if len(mz1) == 0 or len(mz2) == 0:
         return "Empty spectrum after filtering."
