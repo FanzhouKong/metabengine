@@ -121,12 +121,9 @@ class MSData:
                 elif spec['ms level'] == 2:
                     temp_scan = Scan(level=2, scan=idx, rt=rt)
                     precursor_mz = spec['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['selected ion m/z']
-                    prod_int_seq = spec['intensity array']
-                    prod_mz_seq = spec['m/z array']
-                    if len(prod_int_seq) > 0:
-                        prod_mz_seq = prod_mz_seq[prod_int_seq > np.max(prod_int_seq)*0.01]
-                        prod_int_seq = prod_int_seq[prod_int_seq > np.max(prod_int_seq)*0.01]
-                    temp_scan.add_info_by_level(precs_mz=precs_mz, prod_mz_seq=prod_mz_seq, prod_int_seq=prod_int_seq)
+                    peaks = np.array([spec['m/z array'], spec['intensity array']], dtype=np.float64).T
+                    temp_scan.add_info_by_level(precursor_mz=precursor_mz, peaks=peaks)
+                    _clean_ms2(temp_scan)
                     self.ms2_idx.append(idx)
                 
                 self.scans.append(temp_scan)
@@ -176,13 +173,10 @@ class MSData:
 
                 elif spec['msLevel'] == 2:
                     temp_scan = Scan(level=2, scan=idx, rt=rt)
-                    precs_mz = spec['precursorMz'][0]['precursorMz']
-                    prod_int_seq = spec['intensity array']
-                    prod_mz_seq = spec['m/z array']
-                    if len(prod_int_seq) > 0:
-                        prod_mz_seq = prod_mz_seq[prod_int_seq > np.max(prod_int_seq)*0.01]
-                        prod_int_seq = prod_int_seq[prod_int_seq > np.max(prod_int_seq)*0.01]
-                    temp_scan.add_info_by_level(precs_mz=precs_mz, prod_mz_seq=prod_mz_seq, prod_int_seq=prod_int_seq)
+                    precursor_mz = spec['precursorMz'][0]['precursorMz']
+                    peaks = np.array([spec['m/z array'], spec['intensity array']], dtype=np.float64).T
+                    temp_scan.add_info_by_level(precursor_mz=precursor_mz, peaks=peaks)
+                    _clean_ms2(temp_scan)
                     self.ms2_idx.append(idx)
                 
                 self.scans.append(temp_scan)
@@ -205,7 +199,7 @@ class MSData:
         for idx in self.ms1_idx:
             self.scans[idx].mz_seq = self.scans[idx].mz_seq[self.scans[idx].int_seq > self.params.int_tol]
             self.scans[idx].int_seq = self.scans[idx].int_seq[self.scans[idx].int_seq > self.params.int_tol]
-    
+
 
     def find_rois(self):
         """
@@ -425,7 +419,7 @@ class MSData:
             if rt < rt_target - rt_tol:
                 continue
             
-            mz = self.scans[id].precs_mz
+            mz = self.scans[id].precursor_mz
             
             if abs(mz - mz_target) < mz_tol and abs(rt - rt_target) < rt_tol:
                 matched_ms2.append(self.scans[id])
@@ -435,7 +429,7 @@ class MSData:
 
         if return_best:
             if len(matched_ms2) > 1:
-                total_ints = [np.sum(ms2.prod_int_seq) for ms2 in matched_ms2]
+                total_ints = [np.sum(ms2.peaks[:,1]) for ms2 in matched_ms2]
                 return matched_ms2[np.argmax(total_ints)]
             elif len(matched_ms2) == 1:
                 return matched_ms2[0]
@@ -575,9 +569,8 @@ class Scan:
         self.int_seq = None
 
         # for MS2 scans:
-        self.precs_mz = None
-        self.prod_mz_seq = None
-        self.prod_int_seq = None
+        self.precursor_mz = None
+        self.peaks = None
     
 
     def add_info_by_level(self, **kwargs):
@@ -590,9 +583,8 @@ class Scan:
             self.int_seq = np.int64(kwargs['int_seq'])
 
         elif self.level == 2:
-            self.precs_mz = kwargs['precs_mz']
-            self.prod_mz_seq = kwargs['prod_mz_seq']
-            self.prod_int_seq = np.int64(kwargs['prod_int_seq'])
+            self.precursor_mz = kwargs['precursor_mz']
+            self.peaks = kwargs['peaks']
 
 
     def show_scan_info(self):
@@ -614,9 +606,8 @@ class Scan:
 
         elif self.level == 2:
             # keep 4 decimal places for m/z and 0 decimal place for intensity
-            print("Precursor m/z: " + str(np.round(self.precs_mz, decimals=4)))
-            print("Product m/z: " + str(np.around(self.prod_mz_seq, decimals=4)))
-            print("Product intensity: " + str(np.around(self.prod_int_seq, decimals=0)))
+            print("Precursor m/z: " + str(np.round(self.precursor_mz, decimals=4)))
+            print(self.peaks)
     
 
     def plot_scan(self, mz_range=None):
@@ -631,8 +622,8 @@ class Scan:
             x = self.mz_seq
             y = self.int_seq
         elif self.level == 2:
-            x = self.prod_mz_seq
-            y = self.prod_int_seq
+            x = self.peaks[:, 0]
+            y = self.peaks[:, 1]
         
         if mz_range is None:
             mz_range = [np.min(x)-10, np.max(x)+10]
@@ -651,3 +642,16 @@ class Scan:
         plt.xticks(fontsize=14, fontname='Arial')
         plt.yticks(fontsize=14, fontname='Arial')
         plt.show()
+
+
+def _clean_ms2(ms2, offset=1.5):
+    """
+    A function to clean MS/MS by
+    1. Drop ions with m/z > (precursor_mz - offset)   
+    2. Drop ions with intensity < 1% of the base peak intensity
+    """
+    
+    if ms2.peaks.shape[0] > 0:
+        ms2.peaks = ms2.peaks[ms2.peaks[:, 0] < ms2.precursor_mz - offset]
+    if ms2.peaks.shape[0] > 0:
+        ms2.peaks = ms2.peaks[ms2.peaks[:, 1] > 0.01 * np.max(ms2.peaks[:, 1])]

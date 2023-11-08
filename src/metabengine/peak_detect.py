@@ -6,7 +6,7 @@
 import numpy as np
 from tqdm import tqdm
 from scipy.signal import argrelextrema
-from .msms import spec_similarity
+from ms_entropy import calculate_entropy_similarity
 import copy
 
 
@@ -150,12 +150,9 @@ def find_roi_cut(roi, params):
                         ms2_right.append(roi.ms2_seq[j])
 
                 if len(ms2_left) != 0 and len(ms2_right) != 0:
-                    dp = spec_similarity(spec1=ms2_left[-1], spec2=ms2_right[0], 
-                                         mz_tol=params.mz_tol_ms2)
-                    # if dp is a float
-                    if isinstance(dp, float):
-                        if dp < params.ms2_sim_tol:
-                            final_cut_positions.append(cut_positions[i+1])
+                    ms2_similarity = calculate_entropy_similarity(ms2_left.peaks, ms2_right.peaks, params.mz_tol_ms2)
+                    if ms2_similarity < params.ms2_sim_tol:
+                        final_cut_positions.append(cut_positions[i+1])
         
         # cut the roi
         if len(final_cut_positions) != 0:
@@ -215,7 +212,7 @@ def loc_ms2_for_ms1_scan(d, ms1_idx, **kwargs):
         if d.scans[i].level == 1:
             break
         if d.scans[i].level == 2:
-            mz_diff = np.abs(mz_vec - d.scans[i].precs_mz)
+            mz_diff = np.abs(mz_vec - d.scans[i].precursor_mz)
             allocate_vec[np.argmin(mz_diff)] = i
 
     return allocate_vec
@@ -417,7 +414,7 @@ class Roi:
         """
 
         if len(self.ms2_seq) > 1:
-            total_ints = [np.sum(ms2.prod_int_seq[ms2.prod_int_seq < self.mz]) for ms2 in self.ms2_seq]
+            total_ints = [np.sum(ms2.peaks[:,1]) for ms2 in self.ms2_seq]
             self.best_ms2 = self.ms2_seq[max(range(len(total_ints)), key=total_ints.__getitem__)]
         elif len(self.ms2_seq) == 1:
             self.best_ms2 = self.ms2_seq[0]
