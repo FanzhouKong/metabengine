@@ -22,7 +22,7 @@ class Params:
 
         self.rt_range = [0.0, 60.0]   # RT range in minutes, list of two numbers
         self.mode = "dda"         # Acquisition mode, "dda", "dia", or "full_scan"
-        self.ms2_sim_tol = 0.7    # MS2 similarity tolerance
+        self.ms2_sim_tol = 0.8    # MS2 similarity tolerance
         self.ion_mode = "pos"     # Ionization mode, "pos" or "neg"
 
         self.output_single_file_path = None   # Output single file path, character string

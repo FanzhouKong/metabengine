@@ -64,10 +64,6 @@ def process_files(file_names, params, output_single_file=False, discard_short_ro
 
     feature_list = []
 
-    data_path = os.path.join(os.path.dirname(__file__), 'data', "peak_quality_NN.keras")
-
-    model = load_model(data_path)
-
     for file_name in file_names:
         d = feat_detection(file_name, params=params, output_single_file=output_single_file, discard_short_roi=discard_short_roi)
         print('Running alignment on: ', file_name)

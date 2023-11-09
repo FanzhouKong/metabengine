@@ -123,7 +123,7 @@ class MSData:
                     precursor_mz = spec['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['selected ion m/z']
                     peaks = np.array([spec['m/z array'], spec['intensity array']], dtype=np.float64).T
                     temp_scan.add_info_by_level(precursor_mz=precursor_mz, peaks=peaks)
-                    _clean_ms2(temp_scan)
+                    _clean_ms2(temp_scan, int_threshold=self.params.int_tol)
                     self.ms2_idx.append(idx)
                 
                 self.scans.append(temp_scan)
@@ -176,7 +176,7 @@ class MSData:
                     precursor_mz = spec['precursorMz'][0]['precursorMz']
                     peaks = np.array([spec['m/z array'], spec['intensity array']], dtype=np.float64).T
                     temp_scan.add_info_by_level(precursor_mz=precursor_mz, peaks=peaks)
-                    _clean_ms2(temp_scan)
+                    _clean_ms2(temp_scan, int_threshold=self.params.int_tol)
                     self.ms2_idx.append(idx)
                 
                 self.scans.append(temp_scan)
@@ -223,8 +223,8 @@ class MSData:
         to_be_removed = []
 
         pairs = []
-
         for i, roi in enumerate(self.rois):
+            
             positions = peak_detect.find_roi_cut(roi, self.params)
             
             if positions is not None:
@@ -644,14 +644,17 @@ class Scan:
         plt.show()
 
 
-def _clean_ms2(ms2, offset=1.5):
+def _clean_ms2(ms2, offset=1.5, int_threshold=1000):
     """
     A function to clean MS/MS by
     1. Drop ions with m/z > (precursor_mz - offset)   
     2. Drop ions with intensity < 1% of the base peak intensity
+    3. Drop ions with intensity lower than threshold
     """
     
     if ms2.peaks.shape[0] > 0:
         ms2.peaks = ms2.peaks[ms2.peaks[:, 0] < ms2.precursor_mz - offset]
     if ms2.peaks.shape[0] > 0:
         ms2.peaks = ms2.peaks[ms2.peaks[:, 1] > 0.01 * np.max(ms2.peaks[:, 1])]
+    if ms2.peaks.shape[0] > 0:
+        ms2.peaks = ms2.peaks[ms2.peaks[:, 1] > int_threshold]

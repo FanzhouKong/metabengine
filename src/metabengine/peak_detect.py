@@ -126,39 +126,42 @@ def find_roi_cut(roi, params):
     if non_zero_int >= params.min_ion_num and len(roi.ms2_seq) >= 2:
 
         cut_positions = argrelextrema(np.array(roi.int_seq), np.less)[0]
-        final_cut_positions = []
 
         if len(cut_positions) != 0:
-            # determine if a potential cut point should be really cut
-            # compare the MS2 spectra on the left and right
+            final_cut_positions = []
             
-            # add a zero and len(int_seq) to cut_positions
-            cut_positions = np.insert(np.array([0, len(roi.int_seq)-1]), 1, cut_positions)
+            scan_for_cut = [roi.scan_idx_seq[i] for i in cut_positions]
+            ms2_scan_number = [ms2.scan for ms2 in roi.ms2_seq]
+            indices = np.searchsorted(np.array(ms2_scan_number), np.array(scan_for_cut))
+            ms2_groups = [len(group) for group in np.split(ms2_scan_number, indices)]
 
-            for i in range(len(cut_positions)-2):
-                scan_idx1 = roi.scan_idx_seq[cut_positions[i]]
-                scan_idx2 = roi.scan_idx_seq[cut_positions[i+1]]
-                scan_idx3 = roi.scan_idx_seq[cut_positions[i+2]]
+            best_ms2s = []
+            a = 0
+            for i in ms2_groups:
+                b = a + i
+                best_ms2s.append(find_best_ms2(roi.ms2_seq[a:b]))
+                a = b            
 
-                ms2_left = []
-                ms2_right = []
+            ms2_ref = None
+            for i in range(len(best_ms2s)):
+                if best_ms2s[i] is None or best_ms2s[i].peaks.shape[0] == 0:
+                    continue
+                
+                if ms2_ref is None:
+                    ms2_ref = best_ms2s[i]
+                else:
+                    score = calculate_entropy_similarity(ms2_ref.peaks, best_ms2s[i].peaks)
+                    if score < params.ms2_sim_tol:
+                        final_cut_positions.append(cut_positions[i-1])
+                        ms2_ref = best_ms2s[i]
+                    else:
+                        ms2_ref = find_best_ms2([ms2_ref, best_ms2s[i]])
 
-                for j in range(len(roi.ms2_seq)):
-                    if roi.ms2_seq[j].scan > scan_idx1 and roi.ms2_seq[j].scan < scan_idx2:
-                        ms2_left.append(roi.ms2_seq[j])
-                    if roi.ms2_seq[j].scan > scan_idx2 and roi.ms2_seq[j].scan < scan_idx3:
-                        ms2_right.append(roi.ms2_seq[j])
-
-                if len(ms2_left) != 0 and len(ms2_right) != 0:
-                    ms2_similarity = calculate_entropy_similarity(ms2_left.peaks, ms2_right.peaks, params.mz_tol_ms2)
-                    if ms2_similarity < params.ms2_sim_tol:
-                        final_cut_positions.append(cut_positions[i+1])
-        
-        # cut the roi
-        if len(final_cut_positions) != 0:
-            return final_cut_positions
-        else:
-            return None
+            # cut the roi
+            if len(final_cut_positions) != 0:
+                return final_cut_positions
+            else:
+                return None
     else:
         return None
 
@@ -369,6 +372,7 @@ class Roi:
         
         self.find_apex()
         self.find_roi_area()
+        self.find_best_ms2()
 
         tmp = 0
         if self.int_seq[0] == 0:
@@ -413,8 +417,19 @@ class Roi:
         Function to find the best MS2 spectrum of the ROI.
         """
 
-        if len(self.ms2_seq) > 1:
-            total_ints = [np.sum(ms2.peaks[:,1]) for ms2 in self.ms2_seq]
-            self.best_ms2 = self.ms2_seq[max(range(len(total_ints)), key=total_ints.__getitem__)]
-        elif len(self.ms2_seq) == 1:
-            self.best_ms2 = self.ms2_seq[0]
+        self.best_ms2 = find_best_ms2(self.ms2_seq)
+
+
+def find_best_ms2(ms2_seq):
+    """
+    Function to find the best MS2 spectrum for a list of MS2 spectra.
+    """
+
+    if len(ms2_seq) > 0:
+        total_ints = [np.sum(ms2.peaks[:,1]) for ms2 in ms2_seq]
+        if np.max(total_ints) == 0:
+            return None
+        else:
+            return ms2_seq[max(range(len(total_ints)), key=total_ints.__getitem__)]
+    else:
+        return None
