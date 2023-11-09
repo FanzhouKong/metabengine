@@ -103,3 +103,34 @@ def plot_hist(arr, bins, x_label, y_label):
     plt.yticks(fontsize=14, fontname='Arial')
 
     plt.show()
+
+
+def mirror_ms2(scan1, scan2, output=False):
+    """
+    Plot a mirror image of two MS2 spectra for comparison.
+    """
+    if scan1.level == 2 and scan2.level == 2:
+
+        plt.figure(figsize=(10, 3))
+        plt.rcParams['font.size'] = 14
+        plt.rcParams['font.family'] = 'Arial'
+        # plot precursor
+        plt.vlines(x = scan1.precursor_mz, ymin = 0, ymax = 1, color="cornflowerblue", linewidth=1.5, linestyles='dashed')
+        plt.vlines(x = scan2.precursor_mz, ymin = 0, ymax = -1, color="lightcoral", linewidth=1.5, linestyles='dashed')
+
+        # plot fragment ions
+        plt.vlines(x = scan1.peaks[:, 0], ymin = 0, ymax = scan1.peaks[:, 1] / np.max(scan1.peaks[:, 1]), color="blue", linewidth=1.5)
+        plt.vlines(x = scan2.peaks[:, 0], ymin = 0, ymax = -scan2.peaks[:, 1] / np.max(scan2.peaks[:, 1]), color="red", linewidth=1.5)
+
+        # plot zero line
+        plt.hlines(y = 0, xmin = 0, xmax = max([scan1.precursor_mz, scan2.precursor_mz])*1.1, color="black", linewidth=1.5)
+        plt.xlabel("m/z, Dalton", fontsize=18, fontname='Arial')
+        plt.ylabel("Intensity", fontsize=18, fontname='Arial')
+        plt.xticks(fontsize=14, fontname='Arial')
+        plt.yticks(fontsize=14, fontname='Arial')
+
+        if output:
+            plt.savefig(output, dpi=600, bbox_inches="tight")
+            plt.close()
+        else:
+            plt.show()

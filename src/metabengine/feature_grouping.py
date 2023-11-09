@@ -1,10 +1,13 @@
 # Author: Hauxu Yu
 
 # A module to group metabolic features from unique compounds
-# by looking for isotopes, adducts, and in-source fragments
+# 1. annotate isotopes
+# 2. annotate adducts
+# 3. annotate in-source fragments
 
 # Import modules
 import numpy as np
+
 
 def annotate_isotope(d, params):
     """
@@ -19,6 +22,7 @@ def annotate_isotope(d, params):
     # rank the rois (d.rois) in each file by scan number of the maximum (d.roi.scan_number), 
     # for rois with the same scan number, rank by m/z values (d.roi.mz)
     d.rois = sorted(d.rois, key=lambda x: (x.scan_number, x.mz))
+    mz_seq = np.array([roi.mz for roi in d.rois])
 
     # assign an id to each roi by this order
     for i, roi in enumerate(d.rois):

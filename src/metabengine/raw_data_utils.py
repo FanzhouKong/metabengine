@@ -39,8 +39,6 @@ class MSData:
         self.bpc_int = [] # Intensity of the BPC
         self.rois = []  # A list of ROIs
         self.params = None  # A Params object
-        self.rois_mz_seq = None
-        self.rois_rt_seq = None
         self.file_name = None  # File name of the raw data without extension
 
 
@@ -271,8 +269,6 @@ class MSData:
             
             # 2. find the best MS2
             roi.find_best_ms2()
-
-
         
         if self.params.discard_short_roi:
             self.rois = [roi for roi in self.rois if roi.quality != 'short']
@@ -353,10 +349,10 @@ class MSData:
         return eic_rt, eic_int, eic_mz, eic_scan_idx
 
 
-    def find_roi_by_mz(self, mz, mz_tol=0.005):
+    def find_roi_by_mzrt(self, mz, rt, mz_tol=0.005, rt_tol=0.3):
         rois = []
         for roi in self.rois:
-            if np.abs(roi.mz - mz) < mz_tol:
+            if np.abs(roi.mz - mz) < mz_tol and np.abs(roi.rt - rt) < rt_tol:
                 roi.show_roi_info()
                 print("a total of " + str(len(roi.rt_seq)) + " scans")
                 print("roi start: " + str(roi.rt_seq[0]) and "roi end: " + str(roi.rt_seq[-1]))

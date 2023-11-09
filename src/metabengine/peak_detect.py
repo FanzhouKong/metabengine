@@ -196,7 +196,7 @@ def roi_cutter(roi, positions):
     return rois
     
 
-def loc_ms2_for_ms1_scan(d, ms1_idx, **kwargs):
+def loc_ms2_for_ms1_scan(d, ms1_idx):
     """
     A function to allocate MS2 scans for the ions in a given MS1 scan.
 
@@ -216,7 +216,8 @@ def loc_ms2_for_ms1_scan(d, ms1_idx, **kwargs):
             break
         if d.scans[i].level == 2:
             mz_diff = np.abs(mz_vec - d.scans[i].precursor_mz)
-            allocate_vec[np.argmin(mz_diff)] = i
+            if np.min(mz_diff) < 0.01:
+                allocate_vec[np.argmin(mz_diff)] = i
 
     return allocate_vec
 
