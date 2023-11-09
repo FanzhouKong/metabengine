@@ -2,9 +2,9 @@
 
 # -- Project information
 
-project = 'Lumache'
-copyright = '2021, Graziella'
-author = 'Graziella'
+project = 'metabengine'
+copyright = '2023, Huaxu Yu'
+author = 'Huaxu Yu'
 
 release = '0.1'
 version = '0.1.0'

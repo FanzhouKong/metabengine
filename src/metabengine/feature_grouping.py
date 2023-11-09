@@ -19,14 +19,22 @@ def annotate_isotope(d, params):
         An MSData object that contains the detected rois to be grouped.
     """
 
-    # rank the rois (d.rois) in each file by scan number of the maximum (d.roi.scan_number), 
-    # for rois with the same scan number, rank by m/z values (d.roi.mz)
-    d.rois = sorted(d.rois, key=lambda x: (x.scan_number, x.mz))
+    # rank the rois (d.rois) in each file by m/z
+    d.rois = d.rois.sort(key=lambda x: x.mz)
     mz_seq = np.array([roi.mz for roi in d.rois])
+    rt_seq = np.array([roi.rt for roi in d.rois])
 
-    # assign an id to each roi by this order
-    for i, roi in enumerate(d.rois):
-        roi.id = i
+    # check rois
+    for idx, r in enumerate(d.rois):
+        mz = r.mz + 1.003355
+        rt = r.rt
+
+        mz_seq = d.scans[r.scan_number]
+        
+        while True:
+            if abs(mz - m) < params.mz_tol_ms1:
+                break
+
 
     # one compound generates different ions at the same time
     # here, we group the rois by their apexes' scan numbers with a tolerance of 2 scans (i.e., they should have apexes differing by 2 scans at most)
