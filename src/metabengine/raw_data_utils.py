@@ -260,6 +260,8 @@ class MSData:
 
         for roi in self.rois:
             roi.sum_roi()
+
+            roi.int_seq = np.array(roi.int_seq)
             
             # 1. find roi quality by length
             if roi.length >= self.params.min_ion_num:

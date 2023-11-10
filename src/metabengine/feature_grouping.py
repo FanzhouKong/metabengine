@@ -9,7 +9,7 @@
 import numpy as np
 
 
-def annotate_isotope(d, params):
+def annotate_isotope(d):
     """
     Function to annotate isotopes in the MS data.
     
@@ -20,71 +20,48 @@ def annotate_isotope(d, params):
     """
 
     # rank the rois (d.rois) in each file by m/z
-    d.rois = d.rois.sort(key=lambda x: x.mz)
+    d.rois.sort(key=lambda x: x.mz)
     mz_seq = np.array([roi.mz for roi in d.rois])
-    rt_seq = np.array([roi.rt for roi in d.rois])
+    scan_seq = np.array([roi.scan_number for roi in d.rois])
 
-    # check rois
+    labeled_roi = np.zeros(len(d.rois), dtype=bool)
+
     for idx, r in enumerate(d.rois):
-        mz = r.mz + 1.003355
-        rt = r.rt
-
-        mz_seq = d.scans[r.scan_number]
         
-        while True:
-            if abs(mz - m) < params.mz_tol_ms1:
-                break
-
-
-    # one compound generates different ions at the same time
-    # here, we group the rois by their apexes' scan numbers with a tolerance of 2 scans (i.e., they should have apexes differing by 2 scans at most)
-
-    # generate a vector to record whether a roi is grouped
-    group_bool = np.zeros(len(d.rois), dtype=bool)
-    
-    for idx1, roi1 in enumerate(d.rois):
-        # if the roi has been grouped, skip
-        if group_bool[idx1]:
+        if labeled_roi[idx]:
+            idx += 1
             continue
-        
-        # mark the roi as grouped
-        group_bool[idx1] = True
 
-        found_child = []
+        r = d.rois[idx]
+        r.isotope_int_seq = [r.peak_height]
+        r.isotope_mz_seq = [r.mz]
 
-        # find the rois that belong to the same feature
-        for idx2, roi2 in enumerate(d.rois[idx1+1:]):
-            # if the roi has been grouped, skip
-            if group_bool[idx1+1+idx2]:
+        # go to that scan and determine the charge state
+        isotopes, _, charge_state = _find_iso_from_scan(d.scans[r.scan_number], r.mz)
+        r.charge_state = charge_state
+
+        # find roi using isotope list
+        for j, iso in enumerate(isotopes):
+            v = np.where(np.logical_and(np.abs(mz_seq - iso) < 0.005, np.abs(scan_seq - r.scan_number) <= 2))[0]
+
+            if len(v) == 0:
                 continue
+
+            if len(v) > 1:
+                # select the one with the lowest scan difference
+                v = v[np.argmin(np.abs(scan_seq[v] - r.scan_number))]
+            else:
+                v = v[0]
             
-            # if the apex the second roi is larger than the first roi by more than 2 scans, skip
-            if roi2.scan_number - roi1.scan_number > 2:
-                break
+            cor = peak_peak_correlation(r, d.rois[v])
 
-            known_mz_diff_output = known_mz_diff(roi1.mz, roi2.mz, params)
-            
-            # if the m/z differnce between the two rois is unknown, skip
-            if not known_mz_diff_output:
-                continue
+            if cor > 0.9:
+                labeled_roi[v] = True
+                
+                r.isotope_int_seq.append(d.rois[v].peak_height)
+                r.isotope_mz_seq.append(d.rois[v].mz)
 
-            # if the peak-peak correlation between the two rois is less than 0.9, skip
-            if peak_peak_correlation(roi1, roi2) < 0.9:
-                continue
-
-            # if pass all the above tests
-
-            roi2.isotope["isotope"] = True
-            roi2.isotope["isotope_number"] = known_mz_diff_output[1]
-            roi2.isotope["isotope_element"] = known_mz_diff_output[2]
-            roi2.isotope["parent_roi_id"] = roi1.id
-            found_child.append(roi2.id)
-        
-        # if the roi has a son, mark the roi as the parent
-        if len(found_child) > 0:
-            roi1.isotope["isotope"] = True
-            roi1.isotope["isotope_number"] = 0
-            roi1.isotope["child_roi_id"] = found_child
+                d.rois[v].isotope_state = j+1
 
 
 
@@ -149,6 +126,33 @@ def peak_peak_correlation(roi1, roi2):
     pp_cor = np.corrcoef(int1, int2)[0, 1]
 
     return pp_cor
+
+
+def _find_iso_from_scan(scan, mz):
+    """
+    Find the charge state of a m/z value based on a scan.  
+    """
+
+    isotopes = []
+    distribution = []
+    mass_diff = scan.mz_seq - mz
+    charge_state = 1
+    for idx, md in enumerate(mass_diff):
+        if md < 0.04:
+            continue
+        if md > 10:
+            break
+
+        tmp = md/(1.003355/2)
+        a = round(tmp)
+        if abs(tmp-a) < 0.012:
+            isotopes.append(scan.mz_seq[idx])
+            distribution.append(scan.int_seq[idx])
+            if a%2 == 1:
+                charge_state = 2
+
+    return isotopes, distribution, charge_state
+
 
 
 _isotopic_mass_diffence = {

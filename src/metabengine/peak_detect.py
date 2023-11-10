@@ -268,13 +268,12 @@ class Roi:
 
         # Ceature attributes for roi evaluation
         self.quality = None
-        self.isotope = {
-            'isotope': False,
-            'isotope_number': None,
-            'isotope_element': None,
-            'parent_roi_id': None,
-            'child_roi_id': None,
-        }
+        
+        # Isotopes
+        self.charge_state = 1
+        self.isotope_state = 0
+        self.isotope_mz_seq = []
+        self.isotope_int_seq = []
 
 
     def extend_roi(self, scan_idx, rt, mz, intensity):
