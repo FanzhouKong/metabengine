@@ -64,6 +64,40 @@ def annotate_isotope(d):
                 d.rois[v].isotope_state = j+1
 
 
+def annotate_in_source_fragment(d):
+    """
+    Function to annotate in-source fragments in the MS data.
+    Only [M+O] (roi.isotope_state=0) will be considered in this function.
+    Two criteria are used to annotate in-source fragments:
+    1. The precursor m/z of the child is in the MS2 spectrum of the parent.
+    2. Peak-peak correlation > 0.9
+    
+    Parameters
+    ----------------------------------------------------------
+    d: MSData object
+        An MSData object that contains the detected rois to be grouped.
+    params: Params object
+        A Params object that contains the parameters.
+    """
+
+    # sort ROI by m/z from high to low
+    d.rois.sort(key=lambda x: x.mz, reverse=True)
+
+    # find in-source fragments
+    for idx, r in enumerate(d.rois):
+
+        if r.isotope_state != 0:
+            continue
+
+        mz_seq = r.best_ms2.peaks[:, 0]
+
+        for m 
+
+
+
+
+
+
 
 def known_mz_diff(mz1, mz2, params):
     """
