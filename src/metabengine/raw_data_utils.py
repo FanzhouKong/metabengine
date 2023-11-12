@@ -258,7 +258,8 @@ class MSData:
         # 1. sort ROI by m/z
         self.rois.sort(key=lambda x: x.mz)
 
-        for roi in self.rois:
+        for idx, roi in enumerate(self.rois):
+            roi.id = idx
             roi.sum_roi()
 
             roi.int_seq = np.array(roi.int_seq)

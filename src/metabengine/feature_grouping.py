@@ -76,57 +76,115 @@ def annotate_in_source_fragment(d):
     ----------------------------------------------------------
     d: MSData object
         An MSData object that contains the detected rois to be grouped.
-    params: Params object
-        A Params object that contains the parameters.
     """
 
     # sort ROI by m/z from high to low
     d.rois.sort(key=lambda x: x.mz, reverse=True)
+    mz_seq = np.array([roi.mz for roi in d.rois])
+    scan_seq = np.array([roi.scan_number for roi in d.rois])
 
+    labeled_roi = np.ones(len(d.rois), dtype=bool)
+
+    # isotopes can't be parent or child
+    for idx, r in enumerate(d.rois):
+        if r.isotope_state != 0:
+            labeled_roi[idx] = False
+    
     # find in-source fragments
     for idx, r in enumerate(d.rois):
 
-        if r.isotope_state != 0:
+        # roi with no MS2 spectrum can't be a parent
+        if not labeled_roi[idx] or r.best_ms2 is None:
             continue
 
-        mz_seq = r.best_ms2.peaks[:, 0]
+        for m in r.best_ms2.peaks[:, 0]:
 
-        for m 
+            v = np.logical_and(np.abs(mz_seq - m) < 0.01, np.abs(scan_seq - r.scan_number) <= 2)
+            v = np.where(np.logical_and(v, labeled_roi))[0]
+
+            if len(v) == 0:
+                continue
+
+            if len(v) > 1:
+                # select the one with the lowest scan difference
+                v = v[np.argmin(np.abs(scan_seq[v] - r.scan_number))]
+            else:
+                v = v[0]
+
+            cor = peak_peak_correlation(r, d.rois[v])
+
+            if cor > 0.9:
+                labeled_roi[v] = False
+                d.rois[v].in_source_fragment = True
+                d.rois[v].isf_parent_roi_id = r.id
+                r.isf_child_roi_id.append(d.rois[v].id)
+    
+    d.rois.sort(key=lambda x: x.mz)
 
 
-
-
-
-
-
-def known_mz_diff(mz1, mz2, params):
+def annotate_adduct(d):
     """
-    A function to check whether the m/z difference between two rois is known.
-    The second m/z should be larger than the first m/z.
+    A function to annotate adducts from the same compound.
 
     Parameters
     ----------------------------------------------------------
-    mz1: float
-        The m/z value of the first roi. (mz2 > mz1)
-    mz2: float
-        The m/z value of the second roi. (mz2 > mz1)
-    params: Params object
-        A Params object that contains the parameters.
+    d: MSData object
+        An MSData object that contains the detected rois to be grouped.
     """
 
-    mz_diff = mz2 - mz1
+    # sort ROI by m/z from low to high
+    d.rois.sort(key=lambda x: x.mz)
+    mz_seq = np.array([roi.mz for roi in d.rois])
+    scan_seq = np.array([roi.scan_number for roi in d.rois])
 
-    # check isotopes
-    fds = np.round(mz_diff / _isotopic_mass_diffence['mass_diffs'])
-    diff = abs(_isotopic_mass_diffence['mass_diffs']*fds - mz_diff)
+    labeled_roi = np.ones(len(d.rois), dtype=bool)
 
-    idx_min_diff = np.argmin(diff)
-    min_diff = diff[idx_min_diff]
+    # isotopes and in-source fragments are not evaluated
+    for idx, r in enumerate(d.rois):
+        if r.isotope_state != 0 or r.in_source_fragment:
+            labeled_roi[idx] = False
 
-    if min_diff < params.mz_tol_ms1 and fds[idx_min_diff] < 5:
-        return ['isotope', fds[idx_min_diff], _isotopic_mass_diffence['elements'][idx_min_diff]]
+    if d.params.ion_mode == "pos":
+        adduct_mass_diffence = _adduct_mass_diffence_pos_against_H
+        default_adduct = "[M+H]+"
+    elif d.params.ion_mode == "neg":
+        adduct_mass_diffence = _adduct_mass_diffence_neg_against_H
+        default_adduct = "[M-H]-"
 
-    return False
+    # find adducts by assuming the current roi is the [M+H]+ ion in positive mode and [M-H]- ion in negative mode
+    for idx, r in enumerate(d.rois):
+
+        if not labeled_roi[idx]:
+            continue
+        
+        for adduct in d.params.adduct_list:
+            m = r.mz + adduct_mass_diffence[adduct]
+            v = np.logical_and(np.abs(mz_seq - m) < 0.01, np.abs(scan_seq - r.scan_number) <= 2)
+            v = np.where(np.logical_and(v, labeled_roi))[0]
+
+            if len(v) == 0:
+                continue
+
+            if len(v) > 1:
+                # select the one with the lowest scan difference
+                v = v[np.argmin(np.abs(scan_seq[v] - r.scan_number))]
+            else:
+                v = v[0]
+
+            cor = peak_peak_correlation(r, d.rois[v])
+
+            if cor > 0.9:
+                labeled_roi[v] = False
+                d.rois[v].adduct_type = adduct
+                d.rois[v].adduct_parent_roi_id = r.id
+                r.adduct_child_roi_id.append(d.rois[v].id)
+
+        if len(r.adduct_child_roi_id) > 0:
+            r.adduct_type = default_adduct
+        
+    for r in d.rois:
+        if r.adduct_type is None:
+            r.adduct_type = default_adduct
 
 
 def peak_peak_correlation(roi1, roi2):
@@ -190,37 +248,43 @@ def _find_iso_from_scan(scan, mz):
 
 
 _isotopic_mass_diffence = {
-    'elements': ['H', 'C', 'N', 'O', 'S', 'Cl'],
-    'mass_diffs': np.array([1.006277, 1.003355, 0.997035, 2.004246, 1.995796, 1.99705])
+    'H': 1.006277,
+    'C': 1.003355,
+    'N': 0.997035,
+    'O': 2.004246,
+    'S': 1.995796,
+    'Cl': 1.99705
 }
 
-# _adduct_mass_diffence_neg = {
-#     '-H': -1.007276,
-#     '-H-H2O': -19.01839,
-#     '+Na-2H': 20.974666,
-#     '+Cl': 34.969402,
-#     '+K-2H': 36.948606,
-#     "+HCOO": 44.998201,
-#     '+CH3COO': 59.013851,
-#     '+Br': 78.918885,
-#     '+CF3COO': 112.985586,
-#     '2M-H': -1.007276,
-#     '3M-H': -1.007276,
-# }
 
-# _adduct_mass_diffence_pos = {
-#     '+H': 1.007276,
-#     '+H-H2O': 19.01839,
-#     '+Na': 22.989218,
-#     '+K': 38.963158,
-#     '+NH4': 18.033823,
-#     '+CH3OH+H': 33.033489,
-#     '+ACN+H': 42.033823,
-#     '+2ACN+H': 83.060370,
-#     '+ACN+Na': 64.015765,
-#     '+Li': 7.016003,
-#     "+Ag": 106.905093,
-#     '+2Na-H': 44.97116,
-#     '+2K-H': 76.919039,
-#     '+IPA+H': 61.06534,
-# }
+# adduct mass difference is calculated against the [M+H]+ ion in positive mode, and [M-H]- ion in negative mode
+_adduct_mass_diffence_neg = {
+    '-H': -1.007276,
+    '-H-H2O': -19.01784,
+    '+Cl': 34.969401,
+    '+CH3COO': 59.013853,
+    '+HCOO': 44.998203,
+}
+
+_adduct_mass_diffence_pos = {
+    '+H': 1.007276,
+    '+H-H2O': -17.003289,
+    '+Na': 22.989221,
+    '+K': 38.963158,
+    '+NH4': 18.033826,
+}
+
+
+_adduct_mass_diffence_pos_against_H = {
+    '+H-H2O': -18.010565,
+    '+Na': 21.981945,
+    '+K': 37.955882,
+    '+NH4': 17.02655,
+}
+
+_adduct_mass_diffence_neg_against_H = {
+    '-H-H2O': -18.010564,
+    '+Cl': 35.976677,
+    '+CH3COO': 60.021129,
+    '+HCOO': 46.005479,
+}

@@ -275,6 +275,16 @@ class Roi:
         self.isotope_mz_seq = []
         self.isotope_int_seq = []
 
+        # In-source fragments
+        self.in_source_fragment = False
+        self.isf_child_roi_id = []
+        self.isf_parent_roi_id = None
+
+        # Adducts
+        self.adduct_type = None
+        self.adduct_parent_roi_id = None
+        self.adduct_child_roi_id = []
+
 
     def extend_roi(self, scan_idx, rt, mz, intensity):
         """

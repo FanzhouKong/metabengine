@@ -44,6 +44,9 @@ class Params:
         # Parameters for feature annotation
         self.msms_library = None   # MS/MS library in MSP format, character string
 
+        # Parameters for adduct annotation
+        self.adduct_list = ["[M+H]+", "[M+H-H20]+", "[M+NH4]+", "[M+Na]+"]   # Adduct list, list of character strings
+
 
     def show_params_info(self):
         """

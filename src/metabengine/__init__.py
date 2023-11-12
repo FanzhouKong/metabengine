@@ -6,7 +6,7 @@
 from . import raw_data_utils as raw
 from .params import Params
 from .ann_feat_quality import predict_quality
-from .feature_grouping import annotate_isotope
+from .feature_grouping import annotate_isotope, annotate_adduct, annotate_in_source_fragment
 from .alignment import alignement
 import pickle
 import os
@@ -14,12 +14,12 @@ from keras.models import load_model
 
 def feat_detection(file_name, parameters):
     """
-    A function to detect features from a raw file.
+    Feature detection from a raw LC-MS file (.mzML or .mzXML).
 
     Parameters
     ----------
     file_name : str
-        The file name of the raw file.
+        File name of the raw file.
     parameters : Params object
         The parameters for the workflow.
     """
@@ -48,10 +48,10 @@ def feat_detection(file_name, parameters):
 
     print("Number of regular ROIs: " + str(len(d.rois)))
 
-    # # annotate isotopes, adducts, and in-source fragments
-    # d.annotate_isotope()
-    # d.annotate_adduct()
-    # d.annotate_in_source_fragment()
+    # annotate isotopes, adducts, and in-source fragments
+    annotate_isotope(d)
+    annotate_in_source_fragment(d)
+    annotate_adduct(d)
 
     # output single file
     if d.params.output_single_file_path:
@@ -83,20 +83,19 @@ def process_files(file_names, params, output_single_file=False, discard_short_ro
     return feature_list
 
 
-def read_raw_file_to_obj(file_name):
+def read_raw_file_to_obj(file_name, params=None):
     """
-    Read a raw file and return a MSData object.
+    Read a raw file to a MSData object.
 
     Parameters
     ----------
     file_name : str
         The file name of the raw file.
-    estimate_param : bool
-        Whether to estimate the parameters of the MSData object. The default is False.
     """
 
     d = raw.MSData()
-    params = Params()
+    if params is None:
+        params = Params()
     d.read_raw_data(file_name, params)
     
     return d
