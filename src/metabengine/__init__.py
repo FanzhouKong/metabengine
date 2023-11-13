@@ -52,17 +52,11 @@ def feat_detection(file_name, parameters):
     print("Number of regular ROIs: " + str(len(d.rois)))
 
     # annotate isotopes, adducts, and in-source fragments
-    start = time.time()
     annotate_isotope(d)
-    print("Time for isotopes: " + str(time.time() - start))
 
-    start = time.time()
     annotate_in_source_fragment(d)
-    print("Time for in-source fragments: " + str(time.time() - start))
 
-    start = time.time()
     annotate_adduct(d)
-    print("Time for adducts: " + str(time.time() - start))
 
     # output single file
     if d.params.output_single_file_path:
