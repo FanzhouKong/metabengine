@@ -367,13 +367,13 @@ class Roi:
         self.peak_area = np.trapz(y=self.int_seq, x=self.rt_seq) * 60 # use seconds to calculate area
     
 
-    def find_roi_height_by_ave(self):
+    def find_roi_height_by_ave(self, num=3):
         """
         Function to find the peak height of the ROI by averaging
         the heighest three intensities.
         """
 
-        d = np.sort(self.int_seq)[-3:]
+        d = np.sort(self.int_seq)[-num:]
         # calculate mean of non-zero values
         d = d[d != 0]
         self.peak_height_by_ave = np.mean(d, dtype=np.int64)
@@ -399,6 +399,7 @@ class Roi:
         
         self.find_apex()
         self.find_roi_area()
+        self.find_roi_height_by_ave()
         self.find_best_ms2()
 
         tmp = 0

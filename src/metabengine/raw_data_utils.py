@@ -304,22 +304,50 @@ class MSData:
             plt.show()
         
     
-    def output_roi_report(self, path):
+    def output_roi_report(self, path, detailed=True):
         """
-        Function to generate a report for rois in csv format.
+        Function to generate a report for rois in csv format.'
+
+        Parameters
+        ----------------------------------------------------------
+        path: str
+            Output file path.
+        detailed: bool, default False
+            True: output detailed information for each ROI.
+            False: output only basic information for each ROI.
         """
 
         result = []
-        for idx, roi in enumerate(self.rois):
-            temp = np.array([idx+1, roi.mz, roi.rt, roi.length, roi.peak_area, roi.peak_height, roi.quality])
+
+        for roi in self.rois:
+            iso_dist = ""
+            for i in len(roi.isotope_mz_seq):
+                iso_dist += str(np.round(roi.isotope_mz_seq[i], decimals=4)) + ";" + str(np.round(roi.isotope_int_seq[i], decimals=0)) + "|"
+            iso_dist = iso_dist[:-1]
+
+            ms2 = ""
+            for i in len(roi.best_ms2.peaks):
+                ms2 += str(np.round(roi.best_ms2.peaks[i, 0], decimals=4)) + ";" + str(np.round(roi.best_ms2.peaks[i, 1], decimals=0)) + "|"
+            ms2 = ms2[:-1]
+
+            temp = [roi.id+1, roi.mz, roi.rt, roi.length, roi.rt_seq[0],
+                    roi.rt_seq[1], roi.peak_area, roi.peak_height,
+                    roi.peak_height_by_ave, roi.total_intensity, ms2,
+                    roi.charge_state, roi.isotope_state, iso_dist,
+                    roi.in_source_fragment, roi.isf_parent_roi_id, roi.isf_child_roi_id,
+                    roi.adduct_type, roi.adduct_parent_roi_id, roi.adduct_child_roi_id,
+                    roi.quality]
             result.append(temp)
 
-        # convert the result to a numpy array
-        result = np.array(result)
-
         # convert result to a pandas dataframe
-        df = pd.DataFrame(result, columns=['ID', 'mz', 'rt', 'length', 'peak_area', 'peak_height', 'quality'])
-
+        df = pd.DataFrame(result, columns=["ID", "m/z", "RT", "Length", "RT_start",
+                                           "RT_end", "Peak_area", "Peak_height",
+                                           "Peak_height_by_ave", "Total_intensity",
+                                           "MS2", "Charge_state", "Isotope_state",
+                                           "Isotope_distribution", "In_source_fragment",
+                                           "ISF_parent_ID", "ISF_child_ID", "Adduct_type",
+                                           "Adduct_parent_ID", "Adduct_child_ID", "Quality"])
+        
         # save the dataframe to csv file
         path = path + self.file_name + ".csv"
         df.to_csv(path, index=False)
