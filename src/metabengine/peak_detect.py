@@ -261,7 +261,7 @@ class Roi:
         self.scan_number = -1
         self.peak_area = np.nan
         self.peak_height = np.nan
-        self.peak_height_by_ave = np.nan
+        self.top_average = np.nan
         self.best_ms2 = None
         self.length = 0
 
@@ -365,7 +365,7 @@ class Roi:
         self.peak_area = np.trapz(y=self.int_seq, x=self.rt_seq) * 60 # use seconds to calculate area
     
 
-    def find_roi_height_by_ave(self, num=3):
+    def find_roi_top_average(self, num=3):
         """
         Function to find the peak height of the ROI by averaging
         the heighest three intensities.
@@ -374,7 +374,7 @@ class Roi:
         d = np.sort(self.int_seq)[-num:]
         # calculate mean of non-zero values
         d = d[d != 0]
-        self.peak_height_by_ave = np.mean(d, dtype=np.int64)
+        self.top_average = np.mean(d, dtype=np.int64)
     
 
     def sum_roi(self):
@@ -397,7 +397,7 @@ class Roi:
         
         self.find_apex()
         self.find_roi_area()
-        self.find_roi_height_by_ave()
+        self.find_roi_top_average()
         self.find_best_ms2()
 
         tmp = 0

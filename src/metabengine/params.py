@@ -38,14 +38,14 @@ class Params:
         self.cut_roi = True       # Whether to cut ROI, default is True
 
         # Parameters for feature alignment
-        self.align_mz_tol_ms1 = 0.01  # m/z tolerance for MS1, default is 0.01
-        self.align_rt_tol = 0.1       # RT tolerance, default is 0.1
+        self.align_mz_tol = 0.01  # m/z tolerance for MS1, default is 0.01
+        self.align_rt_tol = 0.2       # RT tolerance, default is 0.2
 
         # Parameters for feature annotation
         self.msms_library = None   # MS/MS library in MSP format, character string
 
         # Parameters for adduct annotation
-        self.adduct_list = ["[M+H]+", "[M+H-H20]+", "[M+NH4]+", "[M+Na]+"]   # Adduct list, list of character strings
+        self.adduct_list = []   # Adduct list, list of character strings. e.g., ["[M+H]+", "[M+H-H20]+", "[M+NH4]+", "[M+Na]+"]
 
         # Parameters for output
         self.output_single_file = False   # Whether to output a single file for each raw file, default is False
