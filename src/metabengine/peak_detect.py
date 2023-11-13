@@ -262,7 +262,6 @@ class Roi:
         self.peak_area = np.nan
         self.peak_height = np.nan
         self.peak_height_by_ave = np.nan
-        self.total_intensity = np.nan
         self.best_ms2 = None
         self.length = 0
 
@@ -355,9 +354,8 @@ class Roi:
         self.scan_number = self.scan_idx_seq[tmp]
         self.peak_height = self.int_seq[tmp]
         self.mz = self.mz_seq[tmp]
-        self.total_intensity = np.sum(self.int_seq)
 
-    
+
     def find_roi_area(self):
         """
         Function to find the peak area of the ROI using trapzoidal rule.

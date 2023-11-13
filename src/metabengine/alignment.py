@@ -67,11 +67,11 @@ class AlignedFeature:
 
         self.mz = 0.0
         self.rt = 0.0
-        self.mz_seq = np.array([])
-        self.rt_seq = np.array([])
-        self.height_seq = np.array([])
-        self.area_seq = np.array([])
-        self.average_height_seq = np.array([])
+        self.mz_seq = []
+        self.rt_seq = []
+        self.height_seq = []
+        self.area_seq = []
+        self.top_average_seq = []
         self.ms2_seq = []
 
         self.best_ms2 = None

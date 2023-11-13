@@ -332,7 +332,7 @@ class MSData:
 
             temp = [roi.id+1, roi.mz, roi.rt, roi.length, roi.rt_seq[0],
                     roi.rt_seq[1], roi.peak_area, roi.peak_height,
-                    roi.peak_height_by_ave, roi.total_intensity, ms2,
+                    roi.peak_height_by_ave, ms2,
                     roi.charge_state, roi.isotope_state, iso_dist,
                     roi.in_source_fragment, roi.isf_parent_roi_id, roi.isf_child_roi_id,
                     roi.adduct_type, roi.adduct_parent_roi_id, roi.adduct_child_roi_id,
@@ -342,7 +342,7 @@ class MSData:
         # convert result to a pandas dataframe
         df = pd.DataFrame(result, columns=["ID", "m/z", "RT", "Length", "RT_start",
                                            "RT_end", "Peak_area", "Peak_height",
-                                           "Peak_height_by_ave", "Total_intensity",
+                                           "Peak_height_by_ave", 
                                            "MS2", "Charge_state", "Isotope_state",
                                            "Isotope_distribution", "In_source_fragment",
                                            "ISF_parent_ID", "ISF_child_ID", "Adduct_type",
