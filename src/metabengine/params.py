@@ -23,7 +23,7 @@ class Params:
         self.rt_range = [0.0, 60.0]   # RT range in minutes, list of two numbers
         self.mode = "dda"         # Acquisition mode, "dda", "dia", or "full_scan"
         self.ms2_sim_tol = 0.8    # MS2 similarity tolerance
-        self.ion_mode = "pos"     # Ionization mode, "pos" or "neg"
+        self.ion_mode = "positive"   # Ionization mode, "positive" or "negative"
 
         self.output_single_file_path = None   # Output single file path, character string
 
@@ -46,6 +46,10 @@ class Params:
 
         # Parameters for adduct annotation
         self.adduct_list = ["[M+H]+", "[M+H-H20]+", "[M+NH4]+", "[M+Na]+"]   # Adduct list, list of character strings
+
+        # Parameters for output
+        self.output_single_file = False   # Whether to output a single file for each raw file, default is False
+        self.output_aligned_file = None   # Output aligned file path, character string
 
 
     def show_params_info(self):

@@ -310,7 +310,7 @@ class Roi:
         self.int_seq.append(intensity)
     
 
-    def show_roi_info(self):
+    def show_roi_info(self, show_annotation=False):
         """
         Function to print the information of the ROI.
         """
@@ -318,6 +318,23 @@ class Roi:
         print(f"ROI: {self.mz:.4f} m/z, {self.rt:.2f} min, {self.peak_area:.2f} area, {self.peak_height:.2f} height")
         print(f"ROI start time: {self.rt_seq[0]:.2f} min, ROI end time: {self.rt_seq[-1]:.2f} min")
 
+        if show_annotation:
+            # show isotopes, in-source fragments and adducts
+            print("Isotope information:")
+            print(f"Isotope charge state: {self.charge_state}")
+            print(f"Isotope state: {self.isotope_state}")
+            print(f"Isotope m/z: {self.isotope_mz_seq}")
+            print(f"Isotope intensity: {self.isotope_int_seq}")
+
+            print("In-source fragment information:")
+            print(f"In-source fragment: {self.in_source_fragment}")
+            print(f"Isf child roi id: {self.isf_child_roi_id}")
+            print(f"Isf parent roi id: {self.isf_parent_roi_id}")
+
+            print("Adduct information:")
+            print(f"Adduct type: {self.adduct_type}")
+            print(f"Adduct parent roi id: {self.adduct_parent_roi_id}")
+            print(f"Adduct child roi id: {self.adduct_child_roi_id}")
     
     def roi_mz_error(self):
         """

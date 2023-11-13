@@ -7,10 +7,13 @@ from . import raw_data_utils as raw
 from .params import Params
 from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope, annotate_adduct, annotate_in_source_fragment
-from .alignment import alignement
+from .alignment import alignement, _output_aligned_features
 import pickle
 import os
 from keras.models import load_model
+from .annotation import annotate_features
+import time
+
 
 def feat_detection(file_name, parameters):
     """
@@ -49,9 +52,17 @@ def feat_detection(file_name, parameters):
     print("Number of regular ROIs: " + str(len(d.rois)))
 
     # annotate isotopes, adducts, and in-source fragments
+    start = time.time()
     annotate_isotope(d)
+    print("Time for isotopes: " + str(time.time() - start))
+
+    start = time.time()
     annotate_in_source_fragment(d)
+    print("Time for in-source fragments: " + str(time.time() - start))
+
+    start = time.time()
     annotate_adduct(d)
+    print("Time for adducts: " + str(time.time() - start))
 
     # output single file
     if d.params.output_single_file_path:
@@ -60,25 +71,38 @@ def feat_detection(file_name, parameters):
     return d
 
 
-def process_files(file_names, params, output_single_file=False, discard_short_roi=False, output_aligned_file=None):
+def process_files(file_names, params):
+    """
+    A function to process multiple raw files.
+
+    Parameters
+    ----------
+    file_names : list
+        A list of file names of the raw files in .mzML or .mzXML format.
+    params : Params object
+        The parameters for the workflow.
+    """
 
     feature_list = []
 
     for file_name in file_names:
-        d = feat_detection(file_name, params=params, output_single_file=output_single_file, discard_short_roi=discard_short_roi)
+        d = feat_detection(file_name, params=params)
         print('Running alignment on: ', file_name)
         alignement(feature_list, d)
     
     # choose the best MS2 for each feature
     for feat in feature_list:
         feat.choose_best_ms2()
-    
-    try:
-        if output_aligned_file:
-            with open(output_aligned_file, 'wb') as f:
-                pickle.dump(feature_list, f)
-    except:
-        print('Unable to save the aligned feature list.')
+
+    # annotation
+    if params.msms_library is not None:
+        try:
+            annotate_features(feature_list, params.msms_library)
+        except:
+            print("Annotation failed.")
+
+    if params.output_aligned_file:
+        _output_aligned_features(feature_list, params.output_aligned_file)
 
     return feature_list
 

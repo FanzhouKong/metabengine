@@ -22,14 +22,13 @@ def annotate_isotope(d):
     # rank the rois (d.rois) in each file by m/z
     d.rois.sort(key=lambda x: x.mz)
     mz_seq = np.array([roi.mz for roi in d.rois])
-    scan_seq = np.array([roi.scan_number for roi in d.rois])
+    rt_seq = np.array([roi.rt for roi in d.rois])
 
     labeled_roi = np.zeros(len(d.rois), dtype=bool)
 
     for idx, r in enumerate(d.rois):
         
         if labeled_roi[idx]:
-            idx += 1
             continue
 
         r = d.rois[idx]
@@ -42,14 +41,14 @@ def annotate_isotope(d):
 
         # find roi using isotope list
         for j, iso in enumerate(isotopes):
-            v = np.where(np.logical_and(np.abs(mz_seq - iso) < 0.005, np.abs(scan_seq - r.scan_number) <= 2))[0]
+            v = np.where(np.logical_and(np.abs(mz_seq - iso) < 0.005, np.abs(rt_seq - r.rt) <= 0.1))[0]
 
             if len(v) == 0:
                 continue
 
             if len(v) > 1:
                 # select the one with the lowest scan difference
-                v = v[np.argmin(np.abs(scan_seq[v] - r.scan_number))]
+                v = v[np.argmin(np.abs(rt_seq[v] - r.rt))]
             else:
                 v = v[0]
             
@@ -81,7 +80,7 @@ def annotate_in_source_fragment(d):
     # sort ROI by m/z from high to low
     d.rois.sort(key=lambda x: x.mz, reverse=True)
     mz_seq = np.array([roi.mz for roi in d.rois])
-    scan_seq = np.array([roi.scan_number for roi in d.rois])
+    rt_seq = np.array([roi.rt for roi in d.rois])
 
     labeled_roi = np.ones(len(d.rois), dtype=bool)
 
@@ -99,7 +98,7 @@ def annotate_in_source_fragment(d):
 
         for m in r.best_ms2.peaks[:, 0]:
 
-            v = np.logical_and(np.abs(mz_seq - m) < 0.01, np.abs(scan_seq - r.scan_number) <= 2)
+            v = np.logical_and(np.abs(mz_seq - m) < 0.01, np.abs(rt_seq - r.rt) <= 0.1)
             v = np.where(np.logical_and(v, labeled_roi))[0]
 
             if len(v) == 0:
@@ -107,9 +106,12 @@ def annotate_in_source_fragment(d):
 
             if len(v) > 1:
                 # select the one with the lowest scan difference
-                v = v[np.argmin(np.abs(scan_seq[v] - r.scan_number))]
+                v = v[np.argmin(np.abs(rt_seq[v] - r.rt))]
             else:
                 v = v[0]
+            
+            if d.rois[v].peak_height > r.peak_height:
+                continue
 
             cor = peak_peak_correlation(r, d.rois[v])
 
@@ -135,7 +137,7 @@ def annotate_adduct(d):
     # sort ROI by m/z from low to high
     d.rois.sort(key=lambda x: x.mz)
     mz_seq = np.array([roi.mz for roi in d.rois])
-    scan_seq = np.array([roi.scan_number for roi in d.rois])
+    rt_seq = np.array([roi.rt for roi in d.rois])
 
     labeled_roi = np.ones(len(d.rois), dtype=bool)
 
@@ -144,22 +146,35 @@ def annotate_adduct(d):
         if r.isotope_state != 0 or r.in_source_fragment:
             labeled_roi[idx] = False
 
-    if d.params.ion_mode == "pos":
-        adduct_mass_diffence = _adduct_mass_diffence_pos_against_H
+    if d.params.ion_mode.lower() == "positive":
         default_adduct = "[M+H]+"
-    elif d.params.ion_mode == "neg":
-        adduct_mass_diffence = _adduct_mass_diffence_neg_against_H
+        adduct_mass_diffence = _adduct_mass_diffence_pos_against_H
+
+    elif d.params.ion_mode.lower() == "negative":
         default_adduct = "[M-H]-"
+        adduct_mass_diffence = _adduct_mass_diffence_neg_against_H
+
 
     # find adducts by assuming the current roi is the [M+H]+ ion in positive mode and [M-H]- ion in negative mode
     for idx, r in enumerate(d.rois):
-
+        
         if not labeled_roi[idx]:
             continue
         
-        for adduct in d.params.adduct_list:
+        if d.params.ion_mode.lower() == "positive":
+            adduct_mass_diffence['[2M+H]+'] = r.mz - 1.007276
+            adduct_mass_diffence['[3M+H]+'] = 2*(r.mz - 1.007276)
+            adduct_mass_diffence['[4M+H]+'] = 3*(r.mz - 1.007276)
+            adduct_mass_diffence['[5M+H]+'] = 4*(r.mz - 1.007276)
+        elif d.params.ion_mode.lower() == "negative":
+            adduct_mass_diffence['[2M-H]-'] = r.mz + 1.007276
+            adduct_mass_diffence['[3M-H]-'] = 2*(r.mz + 1.007276)
+            adduct_mass_diffence['[4M-H]-'] = 3*(r.mz + 1.007276)
+            adduct_mass_diffence['[5M-H]-'] = 4*(r.mz + 1.007276)
+
+        for adduct in adduct_mass_diffence.keys():
             m = r.mz + adduct_mass_diffence[adduct]
-            v = np.logical_and(np.abs(mz_seq - m) < 0.01, np.abs(scan_seq - r.scan_number) <= 2)
+            v = np.logical_and(np.abs(mz_seq - m) < 0.01, np.abs(rt_seq - r.rt) <= 0.1)
             v = np.where(np.logical_and(v, labeled_roi))[0]
 
             if len(v) == 0:
@@ -167,7 +182,7 @@ def annotate_adduct(d):
 
             if len(v) > 1:
                 # select the one with the lowest scan difference
-                v = v[np.argmin(np.abs(scan_seq[v] - r.scan_number))]
+                v = v[np.argmin(np.abs(rt_seq[v] - r.rt))]
             else:
                 v = v[0]
 
@@ -237,7 +252,7 @@ def _find_iso_from_scan(scan, mz):
 
         tmp = md/(1.003355/2)
         a = round(tmp)
-        if abs(tmp-a) < 0.012:
+        if abs(1.003355*a/2 - md) < 0.014:
             isotopes.append(scan.mz_seq[idx])
             distribution.append(scan.int_seq[idx])
             if a%2 == 1:
@@ -276,15 +291,15 @@ _adduct_mass_diffence_pos = {
 
 
 _adduct_mass_diffence_pos_against_H = {
-    '+H-H2O': -18.010565,
-    '+Na': 21.981945,
-    '+K': 37.955882,
-    '+NH4': 17.02655,
+    '[M+H-H2O]+': -18.010565,
+    '[M+Na]+': 21.981945,
+    '[M+K]+': 37.955882,
+    '[M+NH4]+': 17.02655,
 }
 
 _adduct_mass_diffence_neg_against_H = {
-    '-H-H2O': -18.010564,
-    '+Cl': 35.976677,
-    '+CH3COO': 60.021129,
-    '+HCOO': 46.005479,
+    '[M-H-H2O]-': -18.010564,
+    '[M+Cl]-': 35.976677,
+    '[M+CH3COO]-': 60.021129,
+    '[M+HCOO]-': 46.005479,
 }

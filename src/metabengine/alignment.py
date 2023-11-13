@@ -198,56 +198,16 @@ def find_roi_from_data(feat, d):
     return d.rois.pop(idx)
 
 
+def _output_aligned_features(feature_list, output_path):
+    """
+    A function to output the aligned features.
 
+    Parameters
+    ----------------------------------------------------------
+    feature_list: list
+        A list of aligned features.
+    output_path: str
+        The path to the output file.
+    """
 
-
-
-
-
-
-# Back up
-# def alignement(feature_list, d, cross_file_params):
-#     """
-#     A function to correct the retention time (RT) of the MS data to be aligned.
-
-#     Parameters
-#     ----------------------------------------------------------
-#     feature_list: list
-#         A list of features to be aligned.
-#     d: MSData
-#         The MS data to be aligned.
-#     Cross_file_params: Cross_file_params object
-#         The parameters for data alignment.
-#     """
-
-#     # Initiate the aligned features using the first MS data if feature_list is empty
-#     if len(feature_list) == 0:
-#         for roi in d.rois:
-#             aligned_feature = AlignedFeature()
-#             aligned_feature.initiate_feat(roi)
-#             feature_list.append(aligned_feature)
-
-#         # sort features in feature list by peak height from high to low
-#         feature_list.sort(key=lambda x: x.height_seq[0], reverse=True)
-
-#         return None
-    
-#     file_count = len(feature_list[0].mz_seq)
-
-#     # If feature_list is not empty, align the MS data to the existing features by targeted search
-#     for feat in tqdm(feature_list):
-#         roi = find_roi_from_data(feat, d, cross_file_params)
-
-#         if roi is not None:
-#             feat.extend_feat(roi)
-#         else:
-#             feat.extend_gap()
-    
-#     # For newly detected features, add them to the feature list
-#     for roi in d.rois:
-#         aligned_feature = AlignedFeature()
-#         aligned_feature.initiate_feat(roi)
-#         aligned_feature.extend_gap_front(file_count)
-#         feature_list.append(aligned_feature)
-    
-#     feature_list.sort(key=lambda x: x.height_seq[0], reverse=True)
+    pass
