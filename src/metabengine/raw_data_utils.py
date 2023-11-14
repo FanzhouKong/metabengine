@@ -304,29 +304,21 @@ class MSData:
             plt.show()
         
     
-    def output_roi_report(self, path):
+    def output_single_file(self):
         """
         Function to generate a report for rois in csv format.'
-
-        Parameters
-        ----------------------------------------------------------
-        path: str
-            Output file path.
-        detailed: bool, default False
-            True: output detailed information for each ROI.
-            False: output only basic information for each ROI.
         """
 
         result = []
 
         for roi in self.rois:
             iso_dist = ""
-            for i in len(roi.isotope_mz_seq):
+            for i in range(len(roi.isotope_mz_seq)):
                 iso_dist += str(np.round(roi.isotope_mz_seq[i], decimals=4)) + ";" + str(np.round(roi.isotope_int_seq[i], decimals=0)) + "|"
             iso_dist = iso_dist[:-1]
 
             ms2 = ""
-            for i in len(roi.best_ms2.peaks):
+            for i in range(len(roi.best_ms2.peaks)):
                 ms2 += str(np.round(roi.best_ms2.peaks[i, 0], decimals=4)) + ";" + str(np.round(roi.best_ms2.peaks[i, 1], decimals=0)) + "|"
             ms2 = ms2[:-1]
 
@@ -349,7 +341,7 @@ class MSData:
                                            "Adduct_parent_ID", "Adduct_child_ID", "Quality"])
         
         # save the dataframe to csv file
-        path = path + self.file_name + ".csv"
+        path = self.params.project_dir + self.file_name + ".csv"
         df.to_csv(path, index=False)
     
 

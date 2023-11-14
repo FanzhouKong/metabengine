@@ -7,7 +7,7 @@ from . import raw_data_utils as raw
 from .params import Params
 from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope, annotate_adduct, annotate_in_source_fragment
-from .alignment import alignement, _output_aligned_features
+from .alignment import alignement, sum_aligned_features, output_aligned_features
 import pickle
 import os
 from keras.models import load_model
@@ -15,7 +15,7 @@ from .annotation import annotate_features
 import time
 
 
-def feat_detection(file_name, parameters):
+def feat_detection(file_name, params):
     """
     Feature detection from a raw LC-MS file (.mzML or .mzXML).
 
@@ -30,7 +30,7 @@ def feat_detection(file_name, parameters):
     # create a MSData object1
     d = raw.MSData()
 
-    d.read_raw_data(file_name, parameters)  # read raw data
+    d.read_raw_data(file_name, params)  # read raw data
 
     d.drop_ion_by_int()
 
@@ -59,8 +59,8 @@ def feat_detection(file_name, parameters):
     annotate_adduct(d)
 
     # output single file
-    if d.params.output_single_file_path:
-        d.output_roi_report(d.params.output_single_file_path)
+    if d.params.output_single_file:
+        d.output_single_file()
 
     return d
 
@@ -80,23 +80,18 @@ def process_files(file_names, params):
     feature_list = []
 
     for file_name in file_names:
-        d = feat_detection(file_name, params=params)
-        print('Running alignment on: ', file_name)
+        d = feat_detection(file_name, params)
         alignement(feature_list, d)
+        print("-----------------------------------")
     
-    # choose the best MS2 for each feature
-    for feat in feature_list:
-        feat.choose_best_ms2()
+    sum_aligned_features(feature_list)
 
     # annotation
     if params.msms_library is not None:
-        try:
-            annotate_features(feature_list, params.msms_library)
-        except:
-            print("Annotation failed.")
+        annotate_features(feature_list, params)
 
     if params.output_aligned_file:
-        _output_aligned_features(feature_list, params.output_aligned_file)
+        output_aligned_features(feature_list, file_names, params.project_dir)
 
     return feature_list
 

@@ -352,7 +352,7 @@ class Roi:
 
         self.rt = self.rt_seq[tmp]
         self.scan_number = self.scan_idx_seq[tmp]
-        self.peak_height = self.int_seq[tmp]
+        self.peak_height = int(self.int_seq[tmp])
         self.mz = self.mz_seq[tmp]
 
 
@@ -362,7 +362,7 @@ class Roi:
 
         """
         
-        self.peak_area = np.trapz(y=self.int_seq, x=self.rt_seq) * 60 # use seconds to calculate area
+        self.peak_area = int(np.trapz(y=self.int_seq, x=self.rt_seq) * 60) # use seconds to calculate area
     
 
     def find_roi_top_average(self, num=3):

@@ -4,9 +4,8 @@
 
 # Import modules
 import numpy as np
-from tqdm import tqdm
 import pandas as pd
-
+from .visualization import mirror_ms2_db
 
 def alignement(feature_list, d):
     """
@@ -28,7 +27,7 @@ def alignement(feature_list, d):
             feature_list.append(aligned_feature)
 
         # sort features in feature list by peak height from high to low
-        feature_list.sort(key=lambda x: x.height_seq[0], reverse=True)
+        feature_list.sort(key=lambda x: x.highest_roi_intensity, reverse=True)
 
     else:
         existed_file_num = len(feature_list[0].mz_seq)
@@ -42,7 +41,7 @@ def alignement(feature_list, d):
         #     if r.isotope_state != 0:
         #         labeled_roi[r.id] = False
 
-        for feat in tqdm(feature_list):
+        for feat in feature_list:
             v = np.logical_and(np.abs(mz_seq - feat.mz) < d.params.align_mz_tol, np.abs(rt_seq - feat.rt) <= d.params.align_rt_tol)
             v = np.where(np.logical_and(v, labeled_roi))[0]
 
@@ -60,13 +59,13 @@ def alignement(feature_list, d):
             labeled_roi[v] = False
         
         # For newly detected features, add them to the feature list
-        for i in len(labeled_roi):
+        for i in range(len(labeled_roi)):
             if labeled_roi[i]:
                 aligned_feature = AlignedFeature()
                 aligned_feature.extend_feat(roi=d.rois[i], front_zeros=[0.0] * existed_file_num)
                 feature_list.append(aligned_feature)
         
-        feature_list.sort(key=lambda x: x.height_seq[0], reverse=True)
+        feature_list.sort(key=lambda x: x.highest_roi_intensity, reverse=True)
 
 
 class AlignedFeature:
@@ -97,6 +96,8 @@ class AlignedFeature:
         self.matched_peak_number = None
         self.smiles = None
         self.inchikey = None
+        self.matched_precursor_mz = None
+        self.matched_peaks = None
 
 
     def extend_feat(self, roi, front_zeros=[]):
@@ -113,6 +114,8 @@ class AlignedFeature:
         
         if len(self.mz_seq) == 0:
             set_init_mzrt = True
+        else:
+            set_init_mzrt = False
 
         if len(front_zeros) > 0:
             self.mz_seq.extend(front_zeros)
@@ -162,7 +165,7 @@ class AlignedFeature:
                     total_ints.append(np.sum(ms2.peaks[:,1]))
                 else:
                     total_ints.append(0.0)
-        self.best_ms2 = self.ms2_seq[np.argmax(total_ints)]
+            self.best_ms2 = self.ms2_seq[np.argmax(total_ints)]
     
 
     def show_feature_info(self):
@@ -172,8 +175,16 @@ class AlignedFeature:
 
         print('m/z: ', self.mz)
         print('RT: ', self.rt)
-        print('Area sequence: ', self.area_seq)
-        print('Height sequence: ', self.height_seq)
+        print('Area sequence: ', self.peak_area_seq)
+        print('Height sequence: ', self.peak_height_seq)
+    
+
+    def plot_match_result(self, output=False):
+
+        if self.matched_peaks is not None:
+            mirror_ms2_db(self, output=output)
+        else:
+            print("No matched MS/MS spectrum found.")
 
 
 def sum_aligned_features(feature_list):
@@ -213,23 +224,22 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_are
         roi = f.highest_roi
         
         iso_dist = ""
-        for i in len(roi.isotope_mz_seq):
+        for i in range(len(roi.isotope_mz_seq)):
             iso_dist += str(np.round(roi.isotope_mz_seq[i], decimals=4)) + ";" + str(np.round(roi.isotope_int_seq[i], decimals=0)) + "|"
         iso_dist = iso_dist[:-1]
 
         ms2 = ""
-        for i in len(f.best_ms2.peaks):
-            ms2 += str(np.round(f.best_ms2.peaks[i, 0], decimals=4)) + ";" + str(np.round(f.best_ms2.peaks[i, 1], decimals=0)) + "|"
-        ms2 = ms2[:-1]
+        if f.best_ms2 is not None:
+            for i in range(len(f.best_ms2.peaks)):
+                ms2 += str(np.round(f.best_ms2.peaks[i, 0], decimals=4)) + ";" + str(np.round(f.best_ms2.peaks[i, 1], decimals=0)) + "|"
+            ms2 = ms2[:-1]
 
         if int_values.lower()=="peak_area":
-            int_seq = roi.peak_area_seq
+            int_seq = f.peak_area_seq
         elif int_values.lower()=="peak_height":
-            int_seq = roi.peak_height_seq
+            int_seq = f.peak_height_seq
         elif int_values.lower()=="top_average":
-            int_seq = roi.top_average_seq
-        else:
-            int_seq = roi.peak_area_seq
+            int_seq = f.top_average_seq
 
         temp = [idx+1, f.mz, f.rt, ms2, roi.charge_state, roi.isotope_state, iso_dist,
                 roi.in_source_fragment, roi.isf_parent_roi_id, roi.isf_child_roi_id,

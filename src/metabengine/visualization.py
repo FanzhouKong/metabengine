@@ -6,9 +6,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import random
 import numpy as np
-from . import read_raw_file_to_obj as rfo
 
-def plot_bpcs(data_list=None, file_name_list=None, output=None, autocolor=False):
+def plot_bpcs(data_list=None, output=None, autocolor=False):
     """
     A function to plot the base peak chromatograms (overlapped) of a list of data.
     
@@ -17,11 +16,6 @@ def plot_bpcs(data_list=None, file_name_list=None, output=None, autocolor=False)
     data_list : list of MSData objects
         A list of data to be plotted.
     """
-
-    if file_name_list is not None:
-        data_list = []
-        for file_name in file_name_list:
-            data_list.append(rfo(file_name))
 
     if data_list is not None:
         if autocolor:
@@ -105,32 +99,77 @@ def plot_hist(arr, bins, x_label, y_label):
     plt.show()
 
 
-def mirror_ms2(scan1, scan2, output=False):
+def mirror_ms2_from_scans(scan1, scan2, output=False):
     """
     Plot a mirror image of two MS2 spectra for comparison.
     """
+
     if scan1.level == 2 and scan2.level == 2:
+        mirror_ms2(precursor_mz1=scan1.precursor_mz, precursor_mz2=scan2.precursor_mz, peaks1=scan1.peaks, peaks2=scan2.peaks, output=output)
 
-        plt.figure(figsize=(10, 3))
-        plt.rcParams['font.size'] = 14
-        plt.rcParams['font.family'] = 'Arial'
-        # plot precursor
-        plt.vlines(x = scan1.precursor_mz, ymin = 0, ymax = 1, color="cornflowerblue", linewidth=1.5, linestyles='dashed')
-        plt.vlines(x = scan2.precursor_mz, ymin = 0, ymax = -1, color="lightcoral", linewidth=1.5, linestyles='dashed')
 
-        # plot fragment ions
-        plt.vlines(x = scan1.peaks[:, 0], ymin = 0, ymax = scan1.peaks[:, 1] / np.max(scan1.peaks[:, 1]), color="blue", linewidth=1.5)
-        plt.vlines(x = scan2.peaks[:, 0], ymin = 0, ymax = -scan2.peaks[:, 1] / np.max(scan2.peaks[:, 1]), color="red", linewidth=1.5)
+def mirror_ms2(precursor_mz1, precursor_mz2, peaks1, peaks2, output=False):
 
-        # plot zero line
-        plt.hlines(y = 0, xmin = 0, xmax = max([scan1.precursor_mz, scan2.precursor_mz])*1.1, color="black", linewidth=1.5)
-        plt.xlabel("m/z, Dalton", fontsize=18, fontname='Arial')
-        plt.ylabel("Intensity", fontsize=18, fontname='Arial')
-        plt.xticks(fontsize=14, fontname='Arial')
-        plt.yticks(fontsize=14, fontname='Arial')
+    plt.figure(figsize=(10, 3))
+    plt.rcParams['font.size'] = 14
+    plt.rcParams['font.family'] = 'Arial'
+    # plot precursor
+    plt.vlines(x = precursor_mz1, ymin = 0, ymax = 1, color="cornflowerblue", linewidth=1.5, linestyles='dashed')
+    plt.vlines(x = precursor_mz2, ymin = 0, ymax = -1, color="lightcoral", linewidth=1.5, linestyles='dashed')
 
-        if output:
-            plt.savefig(output, dpi=600, bbox_inches="tight")
-            plt.close()
-        else:
-            plt.show()
+    # plot fragment ions
+    plt.vlines(x = peaks1[:, 0], ymin = 0, ymax = peaks1[:, 1] / np.max(peaks1[:, 1]), color="blue", linewidth=1.5)
+    plt.vlines(x = peaks2[:, 0], ymin = 0, ymax = -peaks2[:, 1] / np.max(peaks2[:, 1]), color="red", linewidth=1.5)
+
+    # plot zero line
+    plt.hlines(y = 0, xmin = 0, xmax = max([precursor_mz1, precursor_mz2])*1.1, color="black", linewidth=1.5)
+    plt.xlabel("m/z, Dalton", fontsize=18, fontname='Arial')
+    plt.ylabel("Intensity", fontsize=18, fontname='Arial')
+    plt.xticks(fontsize=14, fontname='Arial')
+    plt.yticks(fontsize=14, fontname='Arial')
+
+    if output:
+        plt.savefig(output, dpi=600, bbox_inches="tight")
+        plt.close()
+    else:
+        plt.show()
+
+
+def mirror_ms2_db(f, output=False):
+
+    precursor_mz1 = f.mz
+    precursor_mz2 = f.matched_precursor_mz
+    peaks1 = f.best_ms2.peaks
+    peaks2 = f.matched_peaks
+
+    plt.figure(figsize=(10, 3))
+    plt.rcParams['font.size'] = 14
+    plt.rcParams['font.family'] = 'Arial'
+    # plot precursor
+    plt.vlines(x = precursor_mz1, ymin = 0, ymax = 1, color="cornflowerblue", linewidth=1.5, linestyles='dashed')
+    plt.vlines(x = precursor_mz2, ymin = 0, ymax = -1, color="lightcoral", linewidth=1.5, linestyles='dashed')
+
+    # plot fragment ions
+    plt.vlines(x = peaks1[:, 0], ymin = 0, ymax = peaks1[:, 1] / np.max(peaks1[:, 1]), color="blue", linewidth=1.5)
+    plt.vlines(x = peaks2[:, 0], ymin = 0, ymax = -peaks2[:, 1] / np.max(peaks2[:, 1]), color="red", linewidth=1.5)
+
+    xmax = max([precursor_mz1, precursor_mz2])*1.2
+    # plot zero line
+    plt.hlines(y = 0, xmin = 0, xmax = xmax, color="black", linewidth=1.5)
+    plt.xlabel("m/z, Dalton", fontsize=18, fontname='Arial')
+    plt.ylabel("Intensity", fontsize=18, fontname='Arial')
+    plt.xticks(fontsize=14, fontname='Arial')
+    plt.yticks(fontsize=14, fontname='Arial')
+
+    # note name and similarity score
+    plt.text(xmax*0.9, 0.9, "Experiment", fontsize=12, fontname='Arial', color="grey")
+    plt.text(xmax*0.9, -0.9, "Database", fontsize=12, fontname='Arial', color="grey")
+    plt.text(0, 0.9, "similarity = {:.3f}".format(f.similarity), fontsize=12, fontname='Arial', color="blue")
+    plt.text(0, -0.95, f.annotation.lower(), fontsize=12, fontname='Arial', color="black")
+
+    if output:
+        plt.savefig(output, dpi=600, bbox_inches="tight")
+        plt.close()
+    else:
+        plt.show()
+    

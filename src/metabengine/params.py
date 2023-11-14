@@ -49,7 +49,7 @@ class Params:
 
         # Parameters for output
         self.output_single_file = False   # Whether to output a single file for each raw file, default is False
-        self.output_aligned_file = None   # Output aligned file path, character string
+        self.output_aligned_file = True   # Output aligned file path, character string
 
 
     def show_params_info(self):
