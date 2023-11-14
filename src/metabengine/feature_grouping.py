@@ -36,11 +36,18 @@ def annotate_isotope(d):
         r.isotope_mz_seq = [r.mz]
 
         # go to that scan and determine the charge state
-        isotopes, _, charge_state = _find_iso_from_scan(d.scans[r.scan_number], r.mz)
-        r.charge_state = charge_state
+        isotopes, _ = _find_iso_from_scan(d.scans[r.scan_number], r.mz)
 
+        last_mz = r.mz
+        iso_counter = 1
         # find roi using isotope list
-        for j, iso in enumerate(isotopes):
+        for iso in isotopes:
+        
+            if iso - last_mz > 2.2:
+                break
+
+            last_mz = iso
+
             v = np.where(np.logical_and(np.abs(mz_seq - iso) < 0.005, np.abs(rt_seq - r.rt) <= 0.1))[0]
 
             if len(v) == 0:
@@ -52,15 +59,21 @@ def annotate_isotope(d):
             else:
                 v = v[0]
             
+            if d.rois[v].peak_height > r.peak_height*3:
+                continue
+
             cor = peak_peak_correlation(r, d.rois[v])
 
-            if cor > 0.9:
+            if cor > d.params.ppr:
                 labeled_roi[v] = True
                 
                 r.isotope_int_seq.append(d.rois[v].peak_height)
                 r.isotope_mz_seq.append(d.rois[v].mz)
 
-                d.rois[v].isotope_state = j+1
+                d.rois[v].isotope_state = iso_counter
+                iso_counter += 1
+        
+        r.charge_state = get_charge_state(r.isotope_mz_seq)
 
 
 def annotate_in_source_fragment(d):
@@ -115,7 +128,7 @@ def annotate_in_source_fragment(d):
 
             cor = peak_peak_correlation(r, d.rois[v])
 
-            if cor > 0.9:
+            if cor > d.params.ppr:
                 labeled_roi[v] = False
                 d.rois[v].in_source_fragment = True
                 d.rois[v].isf_parent_roi_id = r.id
@@ -188,7 +201,7 @@ def annotate_adduct(d):
 
             cor = peak_peak_correlation(r, d.rois[v])
 
-            if cor > 0.9:
+            if cor > d.params.ppr:
                 labeled_roi[v] = False
                 d.rois[v].adduct_type = adduct
                 d.rois[v].adduct_parent_roi_id = r.id
@@ -243,7 +256,7 @@ def _find_iso_from_scan(scan, mz):
     isotopes = []
     distribution = []
     mass_diff = scan.mz_seq - mz
-    charge_state = 1
+
     for idx, md in enumerate(mass_diff):
         if md < 0.04:
             continue
@@ -255,11 +268,22 @@ def _find_iso_from_scan(scan, mz):
         if abs(1.003355*a/2 - md) < 0.014:
             isotopes.append(scan.mz_seq[idx])
             distribution.append(scan.int_seq[idx])
-            if a%2 == 1:
-                charge_state = 2
 
-    return isotopes, distribution, charge_state
+    return isotopes, distribution
 
+
+def get_charge_state(mz_seq):
+    
+    if len(mz_seq) < 2:
+        return 1
+    
+    mass_diff = mz_seq[1] - mz_seq[0]
+
+    # check mass diff is closer to 1 or 0.5
+    if abs(mass_diff - 1) < abs(mass_diff - 0.5):
+        return 1
+    else:
+        return 2
 
 
 _isotopic_mass_diffence = {

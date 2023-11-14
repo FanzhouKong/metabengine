@@ -318,11 +318,12 @@ class MSData:
             iso_dist = iso_dist[:-1]
 
             ms2 = ""
-            for i in range(len(roi.best_ms2.peaks)):
-                ms2 += str(np.round(roi.best_ms2.peaks[i, 0], decimals=4)) + ";" + str(np.round(roi.best_ms2.peaks[i, 1], decimals=0)) + "|"
-            ms2 = ms2[:-1]
+            if roi.best_ms2 is not None:
+                for i in range(len(roi.best_ms2.peaks)):
+                    ms2 += str(np.round(roi.best_ms2.peaks[i, 0], decimals=4)) + ";" + str(np.round(roi.best_ms2.peaks[i, 1], decimals=0)) + "|"
+                ms2 = ms2[:-1]
 
-            temp = [roi.id+1, roi.mz, roi.rt, roi.length, roi.rt_seq[0],
+            temp = [roi.id, roi.mz, roi.rt, roi.length, roi.rt_seq[0],
                     roi.rt_seq[1], roi.peak_area, roi.peak_height,
                     roi.top_average, ms2,
                     roi.charge_state, roi.isotope_state, iso_dist,

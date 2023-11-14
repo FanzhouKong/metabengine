@@ -43,6 +43,7 @@ class Params:
 
         # Parameters for feature annotation
         self.msms_library = None   # MS/MS library in MSP format, character string
+        self.ppr = 0.8             # Peak peak correlation threshold, default is 0.8
 
         # Parameters for adduct annotation
         self.adduct_list = []   # Adduct list, list of character strings. e.g., ["[M+H]+", "[M+H-H20]+", "[M+NH4]+", "[M+Na]+"]
