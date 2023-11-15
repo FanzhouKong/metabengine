@@ -9,7 +9,7 @@ metabengine is an integrated python package for processing LC-MS data for untarg
 # Accessibility
 
 * **Documentation:** 
-* **Bug reports:** https://github.com/Waddlessss/bago/issues
+* **Bug reports:** https://github.com/Waddlessss/metabengine/issues
 
 &nbsp;
 &nbsp;
