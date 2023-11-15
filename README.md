@@ -8,7 +8,7 @@
 
 # Accessibility
 
-* **Documentation:** 
+* **Documentation:** https://metabengine.readthedocs.io/en/latest/
 * **Bug reports:** https://github.com/Waddlessss/metabengine/issues
 
 &nbsp;
