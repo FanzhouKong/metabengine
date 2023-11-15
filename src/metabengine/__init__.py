@@ -11,11 +11,11 @@ from .alignment import alignement, sum_aligned_features, output_aligned_features
 import pickle
 import os
 from keras.models import load_model
-from .annotation import annotate_features
+from .annotation import annotate_features, annotate_rois
 import time
 
 
-def feat_detection(file_name, params):
+def feat_detection(file_name, params, annotation=False):
     """
     Feature detection from a raw LC-MS file (.mzML or .mzXML).
 
@@ -57,6 +57,9 @@ def feat_detection(file_name, params):
     annotate_in_source_fragment(d)
 
     annotate_adduct(d)
+
+    if annotation and d.params.msms_library is not None:
+        annotate_rois(d)
 
     # output single file
     if d.params.output_single_file:

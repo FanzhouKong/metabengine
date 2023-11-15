@@ -79,6 +79,42 @@ def annotate_features(feature_list, params):
                 f.matched_peaks = matched['peaks']
 
 
+def annotate_rois(d):
+    """
+    A function to annotate rois based on their MS/MS spectra and a MS/MS database.
+
+    Parameters
+    ----------
+    d : MSData object
+        MS data.
+    """
+
+    # load the MS/MS database
+    entropy_search = load_msms_db(d.params.msms_library)
+
+    for f in d.rois:
+        if f.best_ms2 is not None:
+            peaks = entropy_search.clean_spectrum_for_search(f.mz, f.best_ms2.peaks)
+            entropy_similarity, matched_peaks_number = entropy_search.identity_search(precursor_mz=f.mz, peaks=peaks, ms1_tolerance_in_da=d.params.mz_tol_ms1, 
+                                                                                      ms2_tolerance_in_da=d.params.mz_tol_ms2, output_matched_peak_number=True)
+            
+            idx = np.argmax(entropy_similarity)
+            if entropy_similarity[idx] > d.params.ms2_sim_tol:
+                matched = entropy_search[np.argmax(entropy_similarity)]
+                matched = {k.lower():v for k,v in matched.items()}
+                f.annotation = matched['name']
+                f.similarity = entropy_similarity[idx]
+                f.matched_peak_number = matched_peaks_number[idx]
+                f.smiles = matched['smiles'] if 'smiles' in matched else None
+                f.inchikey = matched['inchikey'] if 'inchikey' in matched else None
+                f.matched_precursor_mz = matched['precursor_mz']
+                f.matched_peaks = matched['peaks']
+            else:
+                f.annotation = None
+        else:
+            f.annotation = None
+
+
 def has_chlorine(iso):
     pass
 
