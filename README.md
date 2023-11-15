@@ -1,8 +1,8 @@
 # MetabEngine
 
-[![Generic badge](https://img.shields.io/badge/BAGO-ver_1.0-<COLOR>.svg)](https://github.com/Waddlessss/metabengine/)
+[![Generic badge](https://img.shields.io/badge/metabengine-ver_1.0-%3CCOLOR%3E.svg)](https://github.com/Waddlessss/metabengine/)
 ![Maintainer](https://img.shields.io/badge/maintainer-Huaxu_Yu-blue)
-[![PyPI Downloads](https://img.shields.io/pypi/dm/bago.svg?label=PyPI%20downloads)](https://pypi.org/project/bago/)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/bago.svg?label=PyPI%20downloads)](https://pypi.org/project/metabengine/)
 
 BAGO is a Bayesian optimization strategy for LC gradient optimization for MS-based small molecule analysis. Check out our [YouTube video](https://youtu.be/btNblKBXxk8)
 
