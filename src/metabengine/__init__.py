@@ -131,5 +131,21 @@ def untargeted_workflow(parameters):
     if not os.path.exists(parameters.project_dir):
         raise ValueError("The project directory does not exist.")
     
-    # Check if raw files exist
+    # Check if the three file folders have been created
+    if not os.path.exists(os.path.join(parameters.project_dir, "qc")):
+        os.makedirs(os.path.join(parameters.project_dir, "qc"))
+    if not os.path.exists(os.path.join(parameters.project_dir, "blank")):
+        os.makedirs(os.path.join(parameters.project_dir, "blank"))
+    if not os.path.exists(os.path.join(parameters.project_dir, "sample")):
+        os.makedirs(os.path.join(parameters.project_dir, "sample"))
+    
+    # Move files to the three folders by their names if there is any mzML or mzXML files in the project folder
+    file_names = os.listdir(parameters.project_dir)
+    file_names = [file_name for file_name in file_names if file_name.endswith(".mzML") or file_name.endswith(".mzXML")]
+    if len(file_names) > 0:
+        for i in file_names:
+            if "qc" in i.lower():
+                os.rename(os.path.join(parameters.project_dir, i), os.path.join(parameters.project_dir, "qc", i))
+
+    
 
