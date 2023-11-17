@@ -99,6 +99,11 @@ class AlignedFeature:
         self.matched_precursor_mz = None
         self.matched_peaks = None
 
+        # isotope, in-source fragment, and adduct information
+        self.charge_state = 1
+        self.is_isotope = False
+        self.is_in_source_fragment = False
+        self.is_adduct = False
 
     def extend_feat(self, roi, front_zeros=[]):
         """
@@ -205,6 +210,11 @@ def sum_aligned_features(feature_list):
 
         f.choose_best_ms2()
 
+        f.charge_state = f.highest_roi.charge_state
+        f.is_isotope = f.highest_roi.isotope_state != 0
+        f.is_in_source_fragment = f.highest_roi.in_source_fragment
+        f.adduct_type = f.highest_roi.adduct_type
+
 
 def output_aligned_features(feature_list, file_names, path, int_values="peak_area"):
     """
@@ -241,11 +251,9 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_are
         elif int_values.lower()=="top_average":
             int_seq = f.top_average_seq
 
-        temp = [idx+1, f.mz, f.rt, ms2, roi.charge_state, roi.isotope_state, iso_dist,
-                roi.in_source_fragment, roi.isf_parent_roi_id, roi.isf_child_roi_id,
-                roi.adduct_type, roi.adduct_parent_roi_id, roi.adduct_child_roi_id,
-                f.annotation, f.similarity, f.matched_peak_number, f.smiles, f.inchikey,
-                roi.quality]
+        temp = [idx+1, f.mz, f.rt, ms2, f.charge_state, f.is_isotope, iso_dist,
+                f.is_in_source_fragment, f.adduct_type, f.annotation, f.similarity, 
+                f.matched_peak_number, f.smiles, f.inchikey, roi.quality]
                 
         temp.extend(int_seq)
 
@@ -253,10 +261,8 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_are
 
     # convert result to a pandas dataframe
     columns = ["id", "mz", "rt", "ms2", "charge_state", "isotope_state", "isotope_dist",
-                "in_source_fragment", "isf_parent_roi_id", "isf_child_roi_id",
-                "adduct_type", "adduct_parent_roi_id", "adduct_child_roi_id",
-                "annotation", "similarity_score", "matched_peak_number", "smiles", "inchikey",
-                "quality"]
+                "in_source_fragment", "adduct_type", "annotation", "similarity_score", 
+                "matched_peak_number", "smiles", "inchikey", "quality"]
     columns.extend(file_names)
     df = pd.DataFrame(result, columns=columns)
     

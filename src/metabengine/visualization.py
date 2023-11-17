@@ -51,24 +51,32 @@ def random_color_generator():
 _color_list = ["red", "blue", "green", "orange", "purple", "brown", "pink", "gray", "olive", "cyan"]
 
 
-def plot_roi(d, roi, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None, output=False):
+def plot_roi(d, roi, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None, output=False, break_scan=None):
     """
     Function to plot EIC of a target m/z.
     """
 
     if rt_window is not None:
         rt_range = [roi.rt_seq[0] - rt_window, roi.rt_seq[-1] + rt_window]
-
+    
     # get the eic data
     eic_rt, eic_int, _, eic_scan_idx = d.get_eic_data(roi.mz, mz_tol=mz_tol, rt_range=rt_range)
     idx_start = np.where(eic_scan_idx == roi.scan_idx_seq[0])[0][0]
     idx_end = np.where(eic_scan_idx == roi.scan_idx_seq[-1])[0][0] + 1
 
+    if break_scan is not None:
+        idx_middle = np.where(eic_scan_idx == break_scan)[0][0]
+
     plt.figure(figsize=(9, 3))
     plt.rcParams['font.size'] = 14
     plt.rcParams['font.family'] = 'Arial'
     plt.plot(eic_rt, eic_int, linewidth=0.5, color="black")
-    plt.fill_between(eic_rt[idx_start:idx_end], eic_int[idx_start:idx_end], color="black", alpha=0.2)
+
+    if break_scan is not None:
+        plt.fill_between(eic_rt[idx_start:(idx_middle+1)], eic_int[idx_start:(idx_middle+1)], color="blue", alpha=0.2)
+        plt.fill_between(eic_rt[idx_middle:idx_end], eic_int[idx_middle:idx_end], color="red", alpha=0.2)
+    else:
+        plt.fill_between(eic_rt[idx_start:idx_end], eic_int[idx_start:idx_end], color="black", alpha=0.2)
     plt.axvline(x = roi.rt, color = 'b', linestyle = '--', linewidth=1)
     plt.xlabel("Retention Time (min)", fontsize=18, fontname='Arial')
     plt.ylabel("Intensity", fontsize=18, fontname='Arial')

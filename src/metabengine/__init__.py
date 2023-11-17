@@ -15,7 +15,7 @@ from .annotation import annotate_features, annotate_rois
 import time
 
 
-def feat_detection(file_name, params, annotation=False):
+def feature_detection(file_name, params, annotation=False):
     """
     Feature detection from a raw LC-MS file (.mzML or .mzXML).
 
@@ -83,7 +83,7 @@ def process_files(file_names, params):
     feature_list = []
 
     for file_name in file_names:
-        d = feat_detection(file_name, params)
+        d = feature_detection(file_name, params)
         alignement(feature_list, d)
         print("-----------------------------------")
     

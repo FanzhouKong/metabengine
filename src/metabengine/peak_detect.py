@@ -158,7 +158,7 @@ def find_roi_cut(roi, params):
                         ms2_ref = find_best_ms2([ms2_ref, best_ms2s[i]])
 
             # cut the roi
-            if len(final_cut_positions) != 0:
+            if len(final_cut_positions) != 0 and len(final_cut_positions) <= 5:
                 return final_cut_positions
             else:
                 return None
