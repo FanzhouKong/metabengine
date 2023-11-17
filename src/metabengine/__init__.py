@@ -5,6 +5,8 @@
 # Import modules
 from . import raw_data_utils as raw
 from .params import Params
+import pandas as pd
+import numpy as np
 from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope, annotate_adduct, annotate_in_source_fragment
 from .alignment import alignement, sum_aligned_features, output_aligned_features
@@ -144,8 +146,84 @@ def untargeted_workflow(parameters):
     file_names = [file_name for file_name in file_names if file_name.endswith(".mzML") or file_name.endswith(".mzXML")]
     if len(file_names) > 0:
         for i in file_names:
-            if "qc" in i.lower():
+            if "qc" in i.lower() or 'pool' in i.lower():
                 os.rename(os.path.join(parameters.project_dir, i), os.path.join(parameters.project_dir, "qc", i))
-
+            elif "blank" in i.lower():
+                os.rename(os.path.join(parameters.project_dir, i), os.path.join(parameters.project_dir, "blank", i))
+            else:
+                os.rename(os.path.join(parameters.project_dir, i), os.path.join(parameters.project_dir, "sample", i))
     
+    # list the absolute paths of the files in the three folders
+    qc_file_names = os.listdir(os.path.join(parameters.project_dir, "qc"))
+    qc_file_names = [os.path.join(parameters.project_dir, "qc", file_name) for file_name in qc_file_names]
+    blank_file_names = os.listdir(os.path.join(parameters.project_dir, "blank"))
+    blank_file_names = [os.path.join(parameters.project_dir, "blank", file_name) for file_name in blank_file_names]
+    sample_file_names = os.listdir(os.path.join(parameters.project_dir, "sample"))
+    sample_file_names = [os.path.join(parameters.project_dir, "sample", file_name) for file_name in sample_file_names]
 
+    file_names = qc_file_names + sample_file_names + blank_file_names
+
+    # process files
+    feature_list = process_files(file_names, parameters)
+    
+    # output feature list to a pickle file
+    with open(os.path.join(parameters.project_dir, "project.pickle"), "wb") as f:
+        pickle.dump(feature_list, f)
+
+
+def load_project(project_dir):
+    """
+    Load a project from a project directory.
+
+    Parameters
+    ----------
+    project_dir : str
+        The project directory.
+    """
+
+    # load the project
+    with open(os.path.join(project_dir, "project.pickle"), "rb") as f:
+        feature_list = pickle.load(f)
+    
+    return feature_list
+
+
+def targeted_workflow(parameters):
+    """
+    A workflow for targeted metabolomics research. The function tries to
+    find the targeted features in the samples by m/z and retention time.
+
+    Parameters
+    ----------
+    parameters : Params object
+        The parameters for the workflow.    
+    """
+
+    # check if rhe targeted file list is there
+    if parameters.targeted_list is None or not os.path.exists(parameters.targeted_list):
+        raise ValueError("The targeted file list does not exist.")
+    
+    df = pd.read_csv(parameters.targeted_list)
+    mz_seq = np.array(df["mz"])
+    rt_seq = np.array(df["rt"])
+
+    # get file names
+    file_names = os.listdir(parameters.project_dir)
+    file_names = [file_name for file_name in file_names if file_name.endswith(".mzML") or file_name.endswith(".mzXML")]
+    file_names = [os.path.join(parameters.project_dir, file_name) for file_name in file_names]
+
+    for file_name in file_names:
+        d = feature_detection(file_name, parameters)
+        rois = d.find_roi_by_mzrt(mz_seq, rt_seq)
+
+        # get the ROI with the highest intensity
+        roi = rois[0]
+        for i in rois:
+            if i.peak_height > roi.peak_height:
+                roi = i
+
+        # define the output
+        output = {}
+
+        
+        

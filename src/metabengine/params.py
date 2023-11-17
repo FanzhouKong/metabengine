@@ -19,6 +19,8 @@ class Params:
 
         # Need to be specified by the user
         self.project_dir = None   # Project directory, character string
+        self.targeted = False     # Whether the workflow is targeted, default is False
+        self.targeted_list = None
 
         self.rt_range = [0.0, 60.0]   # RT range in minutes, list of two numbers
         self.mode = "dda"         # Acquisition mode, "dda", "dia", or "full_scan"
