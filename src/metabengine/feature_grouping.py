@@ -44,7 +44,7 @@ def annotate_isotope(d):
             if iso - last_mz > 2.2:
                 break
 
-            v = np.where(np.logical_and(np.abs(mz_seq - iso) < 0.005, np.abs(rt_seq - r.rt) <= 0.1))[0]
+            v = np.where(np.logical_and(np.abs(mz_seq - iso) < 0.005, np.abs(rt_seq - r.rt) < 0.1))[0]
 
             if len(v) == 0:
                 continue
