@@ -61,6 +61,16 @@ def annotate_features(feature_list, params):
     entropy_search = load_msms_db(params.msms_library)
 
     for f in feature_list:
+
+        f.annotation = None
+        f.similarity = None
+        f.matched_peak_number = None
+        f.smiles = None
+        f.inchikey = None
+        f.matched_precursor_mz = None
+        f.matched_peaks = None
+        f.formula = None
+        
         if f.best_ms2 is not None:
             peaks = entropy_search.clean_spectrum_for_search(f.mz, f.best_ms2.peaks)
             entropy_similarity, matched_peaks_number = entropy_search.identity_search(precursor_mz=f.mz, peaks=peaks, ms1_tolerance_in_da=params.mz_tol_ms1, 
@@ -77,6 +87,7 @@ def annotate_features(feature_list, params):
                 f.inchikey = matched['inchikey'] if 'inchikey' in matched else None
                 f.matched_precursor_mz = matched['precursor_mz']
                 f.matched_peaks = matched['peaks']
+                f.formula = matched['formula'] if 'formula' in matched else None
 
 
 def annotate_rois(d):
@@ -91,8 +102,18 @@ def annotate_rois(d):
 
     # load the MS/MS database
     entropy_search = load_msms_db(d.params.msms_library)
+    
 
     for f in d.rois:
+        f.annotation = None
+        f.similarity = None
+        f.matched_peak_number = None
+        f.smiles = None
+        f.inchikey = None
+        f.matched_precursor_mz = None
+        f.matched_peaks = None
+        f.formula = None
+
         if f.best_ms2 is not None:
             peaks = entropy_search.clean_spectrum_for_search(f.mz, f.best_ms2.peaks)
             entropy_similarity, matched_peaks_number = entropy_search.identity_search(precursor_mz=f.mz, peaks=peaks, ms1_tolerance_in_da=d.params.mz_tol_ms1, 
@@ -109,10 +130,7 @@ def annotate_rois(d):
                 f.inchikey = matched['inchikey'] if 'inchikey' in matched else None
                 f.matched_precursor_mz = matched['precursor_mz']
                 f.matched_peaks = matched['peaks']
-            else:
-                f.annotation = None
-        else:
-            f.annotation = None
+                f.formula = matched['formula'] if 'formula' in matched else None
 
 
 def has_chlorine(iso):

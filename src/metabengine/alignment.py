@@ -37,10 +37,6 @@ def alignement(feature_list, d):
         int_seq = np.array([roi.peak_height for roi in d.rois])
         labeled_roi = np.ones(len(d.rois), dtype=bool)
 
-        # for r in d.rois:
-        #     if r.isotope_state != 0:
-        #         labeled_roi[r.id] = False
-
         for feat in feature_list:
             v = np.logical_and(np.abs(mz_seq - feat.mz) < d.params.align_mz_tol, np.abs(rt_seq - feat.rt) <= d.params.align_rt_tol)
             v = np.where(np.logical_and(v, labeled_roi))[0]
@@ -161,16 +157,13 @@ class AlignedFeature:
         The best MS2 is the one with the highest summed intensity.
         """
 
-        if self.highest_roi.best_ms2 is not None:
-            self.best_ms2 = self.highest_roi.best_ms2
-        else:
-            total_ints = []     
-            for ms2 in self.ms2_seq:
-                if ms2 is not None:
-                    total_ints.append(np.sum(ms2.peaks[:,1]))
-                else:
-                    total_ints.append(0.0)
-            self.best_ms2 = self.ms2_seq[np.argmax(total_ints)]
+        total_ints = []
+        for ms2 in self.ms2_seq:
+            if ms2 is not None:
+                total_ints.append(np.sum(ms2.peaks[:,1]))
+            else:
+                total_ints.append(0.0)
+        self.best_ms2 = self.ms2_seq[np.argmax(total_ints)]
     
 
     def show_feature_info(self):
@@ -211,7 +204,7 @@ def sum_aligned_features(feature_list):
         f.choose_best_ms2()
 
         f.charge_state = f.highest_roi.charge_state
-        f.is_isotope = f.highest_roi.isotope_state != 0
+        f.is_isotope = f.highest_roi.is_isotope
         f.is_in_source_fragment = f.highest_roi.in_source_fragment
         f.adduct_type = f.highest_roi.adduct_type
 
@@ -260,7 +253,7 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_are
         result.append(temp)
 
     # convert result to a pandas dataframe
-    columns = ["id", "mz", "rt", "ms2", "charge_state", "isotope_state", "isotope_dist",
+    columns = ["id", "mz", "rt", "ms2", "charge_state", "is_isotope", "isotope_dist",
                 "in_source_fragment", "adduct_type", "annotation", "similarity_score", 
                 "matched_peak_number", "smiles", "inchikey", "quality"]
     columns.extend(file_names)

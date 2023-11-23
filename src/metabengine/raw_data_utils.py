@@ -272,10 +272,6 @@ class MSData:
             
             # 2. find the best MS2
             roi.find_best_ms2()
-        
-        if self.params.discard_short_roi:
-            self.rois = [roi for roi in self.rois if roi.quality != 'short']
-            print("Number of regular ROIs after discarding short ROIs: " + str(len(self.rois)))
     
 
     def plot_bpc(self, output=False):
@@ -304,7 +300,7 @@ class MSData:
             plt.show()
         
     
-    def output_single_file(self):
+    def output_single_file(self, annotated=False):
         """
         Function to generate a report for rois in csv format.'
         """
@@ -326,20 +322,29 @@ class MSData:
             temp = [roi.id, roi.mz, roi.rt, roi.length, roi.rt_seq[0],
                     roi.rt_seq[1], roi.peak_area, roi.peak_height,
                     roi.top_average, ms2,
-                    roi.charge_state, roi.isotope_state, iso_dist,
+                    roi.charge_state, roi.is_isotope, iso_dist,
                     roi.in_source_fragment, roi.isf_parent_roi_id, roi.isf_child_roi_id,
                     roi.adduct_type, roi.adduct_parent_roi_id, roi.adduct_child_roi_id,
                     roi.quality]
+            
+            if annotated:
+                temp.extend([roi.annotation, roi.similarity, roi.matched_peak_number, roi.smiles, roi.inchikey])
+
             result.append(temp)
 
         # convert result to a pandas dataframe
-        df = pd.DataFrame(result, columns=["ID", "m/z", "RT", "Length", "RT_start",
-                                           "RT_end", "Peak_area", "Peak_height",
-                                           "top_average", 
-                                           "MS2", "Charge_state", "Isotope_state",
-                                           "Isotope_distribution", "In_source_fragment",
-                                           "ISF_parent_ID", "ISF_child_ID", "Adduct_type",
-                                           "Adduct_parent_ID", "Adduct_child_ID", "Quality"])
+        columns = [ "ID", "m/z", "RT", "Length", "RT_start",
+                    "RT_end", "Peak_area", "Peak_height",
+                    "top_average", 
+                    "MS2", "Charge_state", "Is_isotope",
+                    "Isotope_distribution", "Is_in_source_fragment",
+                    "ISF_parent_ID", "ISF_child_ID", "Adduct_type",
+                    "Adduct_parent_ID", "Adduct_child_ID", "Quality"]
+        
+        if annotated:
+            columns.extend(["Annotation", "Similarity", "Matched_peak_number", "SMILES", "InChIKey"])
+
+        df = pd.DataFrame(result, columns=columns)
         
         # save the dataframe to csv file
         path = self.params.project_dir + self.file_name + ".csv"
@@ -378,7 +383,7 @@ class MSData:
         for roi in self.rois:
             if np.abs(roi.mz - mz) < mz_tol and np.abs(roi.rt - rt) < rt_tol:
                 roi.show_roi_info()
-                print("a total of " + str(len(roi.rt_seq)) + " scans")
+                print("a total of " + str(roi.length) + " scans")
                 print("roi start: " + str(roi.rt_seq[0]) and "roi end: " + str(roi.rt_seq[-1]))
                 print("------------------")
                 rois.append(roi)

@@ -24,62 +24,57 @@ def annotate_isotope(d):
     mz_seq = np.array([roi.mz for roi in d.rois])
     rt_seq = np.array([roi.rt for roi in d.rois])
 
-    labeled_roi = np.zeros(len(d.rois), dtype=bool)
-
-    for idx, r in enumerate(d.rois):
+    for r in d.rois:
         
-        if labeled_roi[idx]:
+        if r.is_isotope or r.length < 5:
             continue
 
-        r = d.rois[idx]
         r.isotope_int_seq = [r.peak_height]
         r.isotope_mz_seq = [r.mz]
 
-        # go to that scan and determine the charge state
-        isotopes, _ = _find_iso_from_scan(d.scans[r.scan_number], r.mz)
+        # go to that scan and determine the isotopes
+        isotopes = r.mz + _isotope_mass_array
 
         last_mz = r.mz
-        iso_counter = 1
+
         # find roi using isotope list
         for iso in isotopes:
-        
+            
+            # if isotpoe is not found in two daltons, stop searching
             if iso - last_mz > 2.2:
                 break
-
-            last_mz = iso
 
             v = np.where(np.logical_and(np.abs(mz_seq - iso) < 0.005, np.abs(rt_seq - r.rt) <= 0.1))[0]
 
             if len(v) == 0:
                 continue
 
-            if len(v) > 1:
-                # select the one with the lowest scan difference
-                v = v[np.argmin(np.abs(rt_seq[v] - r.rt))]
-            else:
-                v = v[0]
-            
-            if d.rois[v].peak_height > r.peak_height*3:
+            # isotope can't have intensity 3 fold higher than M0
+            v = [v[i] for i in range(len(v)) if d.rois[v[i]].peak_height < 3*r.peak_height]
+
+            cors = [peak_peak_correlation(r, d.rois[vi]) for vi in v]
+
+            v = [v[i] for i in range(len(v)) if cors[i] > d.params.ppr]
+
+            if len(v) == 0:
                 continue
+            
+            total_int = np.sum([d.rois[vi].peak_height for vi in v])
+            r.isotope_mz_seq.append(iso)
+            r.isotope_int_seq.append(total_int)
+            
+            for vi in v:
+                d.rois[vi].is_isotope = True
 
-            cor = peak_peak_correlation(r, d.rois[v])
+            last_mz = iso
 
-            if cor > d.params.ppr:
-                labeled_roi[v] = True
-                
-                r.isotope_int_seq.append(d.rois[v].peak_height)
-                r.isotope_mz_seq.append(d.rois[v].mz)
-
-                d.rois[v].isotope_state = iso_counter
-                iso_counter += 1
-        
         r.charge_state = get_charge_state(r.isotope_mz_seq)
 
 
 def annotate_in_source_fragment(d):
     """
     Function to annotate in-source fragments in the MS data.
-    Only [M+O] (roi.isotope_state=0) will be considered in this function.
+    Only [M+O] (roi.is_isotope==True) will be considered in this function.
     Two criteria are used to annotate in-source fragments:
     1. The precursor m/z of the child is in the MS2 spectrum of the parent.
     2. Peak-peak correlation > 0.9
@@ -99,14 +94,14 @@ def annotate_in_source_fragment(d):
 
     # isotopes can't be parent or child
     for idx, r in enumerate(d.rois):
-        if r.isotope_state != 0:
+        if r.is_isotope:
             labeled_roi[idx] = False
     
     # find in-source fragments
     for idx, r in enumerate(d.rois):
 
         # roi with no MS2 spectrum can't be a parent
-        if not labeled_roi[idx] or r.best_ms2 is None:
+        if not labeled_roi[idx] or r.best_ms2 is None or r.length < 5:
             continue
 
         for m in r.best_ms2.peaks[:, 0]:
@@ -156,7 +151,7 @@ def annotate_adduct(d):
 
     # isotopes and in-source fragments are not evaluated
     for idx, r in enumerate(d.rois):
-        if r.isotope_state != 0 or r.in_source_fragment:
+        if r.is_isotope or r.in_source_fragment:
             labeled_roi[idx] = False
 
     if d.params.ion_mode.lower() == "positive":
@@ -173,17 +168,23 @@ def annotate_adduct(d):
         
         if not labeled_roi[idx]:
             continue
+
+        if r.length < 5 and r.best_ms2 is None:
+            continue
+
+        if r.charge_state == 2:
+            if d.params.ion_mode.lower() == "positive":
+                r.adduct_type = "[M+2H]+"
+            elif d.params.ion_mode.lower() == "negative":
+                r.adduct_type = "[M-2H]-"
+            continue
         
         if d.params.ion_mode.lower() == "positive":
             adduct_mass_diffence['[2M+H]+'] = r.mz - 1.007276
             adduct_mass_diffence['[3M+H]+'] = 2*(r.mz - 1.007276)
-            adduct_mass_diffence['[4M+H]+'] = 3*(r.mz - 1.007276)
-            adduct_mass_diffence['[5M+H]+'] = 4*(r.mz - 1.007276)
         elif d.params.ion_mode.lower() == "negative":
             adduct_mass_diffence['[2M-H]-'] = r.mz + 1.007276
             adduct_mass_diffence['[3M-H]-'] = 2*(r.mz + 1.007276)
-            adduct_mass_diffence['[4M-H]-'] = 3*(r.mz + 1.007276)
-            adduct_mass_diffence['[5M-H]-'] = 4*(r.mz + 1.007276)
 
         for adduct in adduct_mass_diffence.keys():
             m = r.mz + adduct_mass_diffence[adduct]
@@ -276,14 +277,14 @@ def get_charge_state(mz_seq):
     
     if len(mz_seq) < 2:
         return 1
-    
-    mass_diff = mz_seq[1] - mz_seq[0]
-
-    # check mass diff is closer to 1 or 0.5
-    if abs(mass_diff - 1) < abs(mass_diff - 0.5):
-        return 1
     else:
-        return 2
+        mass_diff = mz_seq[1] - mz_seq[0]
+
+        # check mass diff is closer to 1 or 0.5 | note, mass_diff can be larger than 1
+        if abs(mass_diff - 1) < abs(mass_diff - 0.5):
+            return 1
+        else:
+            return 2
 
 
 _isotopic_mass_diffence = {
@@ -327,3 +328,6 @@ _adduct_mass_diffence_neg_against_H = {
     '[M+CH3COO]-': 60.021129,
     '[M+HCOO]-': 46.005479,
 }
+
+
+_isotope_mass_array = np.arange(0, 10.1, 1.003355/2)[1:]

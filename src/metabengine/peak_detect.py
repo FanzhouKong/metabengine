@@ -270,7 +270,7 @@ class Roi:
         
         # Isotopes
         self.charge_state = 1
-        self.isotope_state = 0
+        self.is_isotope = False
         self.isotope_mz_seq = []
         self.isotope_int_seq = []
 
