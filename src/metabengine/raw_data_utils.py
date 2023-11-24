@@ -274,7 +274,7 @@ class MSData:
             roi.find_best_ms2()
     
 
-    def plot_bpc(self, output=False):
+    def plot_bpc(self, label_name=False, output=False):
         """
         Function to plot base peak chromatogram.
 
@@ -292,6 +292,8 @@ class MSData:
         plt.ylabel("Intensity", fontsize=18, fontname='Arial')
         plt.xticks(fontsize=14, fontname='Arial')
         plt.yticks(fontsize=14, fontname='Arial')
+        if label_name:
+            plt.text(self.ms1_rt_seq[0], np.max(self.bpc_int)*0.9, self.file_name, fontsize=12, fontname='Arial', color="gray")
 
         if output:
             plt.savefig(output, dpi=300, bbox_inches="tight")

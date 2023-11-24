@@ -174,9 +174,9 @@ def annotate_adduct(d):
 
         if r.charge_state == 2:
             if d.params.ion_mode.lower() == "positive":
-                r.adduct_type = "[M+2H]+"
+                r.adduct_type = "[M+2H]2+"
             elif d.params.ion_mode.lower() == "negative":
-                r.adduct_type = "[M-2H]-"
+                r.adduct_type = "[M-2H]2-"
             continue
         
         if d.params.ion_mode.lower() == "positive":
