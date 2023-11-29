@@ -5,8 +5,6 @@
 # Import modules
 from . import raw_data_utils as raw
 from .params import Params
-import pandas as pd
-import numpy as np
 from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope, annotate_adduct, annotate_in_source_fragment
 from .alignment import alignement, sum_aligned_features, output_aligned_features
@@ -40,9 +38,8 @@ def feature_detection(file_name, params, annotation=False):
     # sort ROI by m/z, find roi quality by length, find the best MS2
     d.process_rois()
     # predict feature quality
-    if d.params.ann_model is None:
-        data_path_ann = os.path.join(os.path.dirname(__file__), 'model', "peak_quality_NN.keras")
-        d.params.ann_model = load_model(data_path_ann)
+    data_path_ann = os.path.join(os.path.dirname(__file__), 'model', "peak_quality_NN.keras")
+    d.params.ann_model = load_model(data_path_ann)
 
     predict_quality(d)
 
@@ -79,6 +76,8 @@ def process_files(file_names, params):
 
     feature_list = []
 
+    alignment_time = 0
+
     for file_name in file_names:
         print("Processing file: " + file_name)
         d = feature_detection(file_name, params)
@@ -96,7 +95,7 @@ def process_files(file_names, params):
     if params.output_aligned_file:
         output_aligned_features(feature_list, file_names, params.project_dir)
 
-    return feature_list
+    return feature_list, alignment_time
 
 
 def read_raw_file_to_obj(file_name, params=None):
@@ -183,45 +182,5 @@ def load_project(project_dir):
     with open(os.path.join(project_dir, "project.pickle"), "rb") as f:
         feature_list = pickle.load(f)
     
-    return feature_list
-
-
-def targeted_workflow(parameters):
-    """
-    A workflow for targeted metabolomics research. The function tries to
-    find the targeted features in the samples by m/z and retention time.
-
-    Parameters
-    ----------
-    parameters : Params object
-        The parameters for the workflow.    
-    """
-
-    # check if rhe targeted file list is there
-    if parameters.targeted_list is None or not os.path.exists(parameters.targeted_list):
-        raise ValueError("The targeted file list does not exist.")
-    
-    df = pd.read_csv(parameters.targeted_list)
-    mz_seq = np.array(df["mz"])
-    rt_seq = np.array(df["rt"])
-
-    # get file names
-    file_names = os.listdir(parameters.project_dir)
-    file_names = [file_name for file_name in file_names if file_name.endswith(".mzML") or file_name.endswith(".mzXML")]
-    file_names = [os.path.join(parameters.project_dir, file_name) for file_name in file_names]
-
-    for file_name in file_names:
-        d = feature_detection(file_name, parameters)
-        rois = d.find_roi_by_mzrt(mz_seq, rt_seq)
-
-        # get the ROI with the highest intensity
-        roi = rois[0]
-        for i in rois:
-            if i.peak_height > roi.peak_height:
-                roi = i
-
-        # define the output
-        output = {}
-
-        
+    return feature_list       
         

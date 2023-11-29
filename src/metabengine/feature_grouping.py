@@ -36,12 +36,13 @@ def annotate_isotope(d):
         isotopes = r.mz + _isotope_mass_array
 
         last_mz = r.mz
+        isotope_id_seq = []
 
         # find roi using isotope list
         for iso in isotopes:
             
             # if isotpoe is not found in two daltons, stop searching
-            if iso - last_mz > 2.2:
+            if iso - last_mz > 1.2 and iso - r.mz > 2.2:
                 break
 
             v = np.where(np.logical_and(np.abs(mz_seq - iso) < 0.005, np.abs(rt_seq - r.rt) < 0.1))[0]
@@ -49,7 +50,7 @@ def annotate_isotope(d):
             if len(v) == 0:
                 continue
 
-            # isotope can't have intensity 3 fold higher than M0
+            # isotope can't have intensity 3 fold or higher than M0
             v = [v[i] for i in range(len(v)) if d.rois[v[i]].peak_height < 3*r.peak_height]
 
             cors = [peak_peak_correlation(r, d.rois[vi]) for vi in v]
@@ -60,15 +61,21 @@ def annotate_isotope(d):
                 continue
             
             total_int = np.sum([d.rois[vi].peak_height for vi in v])
+
+            if iso - r.mz > 2.2 and total_int > r.peak_height:
+                break
+
             r.isotope_mz_seq.append(iso)
             r.isotope_int_seq.append(total_int)
             
             for vi in v:
                 d.rois[vi].is_isotope = True
+                isotope_id_seq.append(d.rois[vi].id)
 
             last_mz = iso
 
         r.charge_state = get_charge_state(r.isotope_mz_seq)
+        r.isotope_id_seq = isotope_id_seq
 
 
 def annotate_in_source_fragment(d):

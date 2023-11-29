@@ -253,13 +253,9 @@ class MSData:
         ----------------------------------------------------------
         params: Params object
             A Params object that contains the parameters.
-        """
+        """      
 
-        # 1. sort ROI by m/z
-        self.rois.sort(key=lambda x: x.mz)
-
-        for idx, roi in enumerate(self.rois):
-            roi.id = idx
+        for roi in self.rois:
             roi.sum_roi()
 
             roi.int_seq = np.array(roi.int_seq)
@@ -272,6 +268,10 @@ class MSData:
             
             # 2. find the best MS2
             roi.find_best_ms2()
+
+        self.rois.sort(key=lambda x: x.mz)
+        for idx in range(len(self.rois)):
+            self.rois[idx].id = idx
     
 
     def plot_bpc(self, label_name=False, output=False):
@@ -324,13 +324,13 @@ class MSData:
             temp = [roi.id, roi.mz, roi.rt, roi.length, roi.rt_seq[0],
                     roi.rt_seq[1], roi.peak_area, roi.peak_height,
                     roi.top_average, ms2,
-                    roi.charge_state, roi.is_isotope, iso_dist,
-                    roi.in_source_fragment, roi.isf_parent_roi_id, roi.isf_child_roi_id,
-                    roi.adduct_type, roi.adduct_parent_roi_id, roi.adduct_child_roi_id,
+                    roi.charge_state, roi.is_isotope, str(roi.isotope_id_seq)[1:-1], iso_dist,
+                    roi.in_source_fragment, roi.isf_parent_roi_id, str(roi.isf_child_roi_id)[1:-1],
+                    roi.adduct_type, roi.adduct_parent_roi_id, str(roi.adduct_child_roi_id)[1:-1],
                     roi.quality]
             
             if annotated:
-                temp.extend([roi.annotation, roi.similarity, roi.matched_peak_number, roi.smiles, roi.inchikey])
+                temp.extend([roi.annotation, roi.formula, roi.similarity, roi.matched_peak_number, roi.smiles, roi.inchikey])
 
             result.append(temp)
 
@@ -338,13 +338,13 @@ class MSData:
         columns = [ "ID", "m/z", "RT", "Length", "RT_start",
                     "RT_end", "Peak_area", "Peak_height",
                     "top_average", 
-                    "MS2", "Charge_state", "Is_isotope",
+                    "MS2", "Charge_state", "Is_isotope", "Isotope_IDs",
                     "Isotope_distribution", "Is_in_source_fragment",
                     "ISF_parent_ID", "ISF_child_ID", "Adduct_type",
-                    "Adduct_parent_ID", "Adduct_child_ID", "Quality"]
+                    "Adduct_base_ID", "Adduct_other_ID", "Quality"]
         
         if annotated:
-            columns.extend(["Annotation", "Similarity", "Matched_peak_number", "SMILES", "InChIKey"])
+            columns.extend(["Annotation", "Formula", "Similarity", "Matched_peak_number", "SMILES", "InChIKey"])
 
         df = pd.DataFrame(result, columns=columns)
         
@@ -363,7 +363,7 @@ class MSData:
         for i in self.ms1_idx:
             if self.scans[i].rt > rt_range[0]:
                 mz_diff = np.abs(self.scans[i].mz_seq - target_mz)
-                if np.min(mz_diff) < mz_tol:
+                if len(mz_diff)>0 and np.min(mz_diff) < mz_tol:
                     eic_rt = np.append(eic_rt, self.scans[i].rt)
                     eic_int = np.append(eic_int, self.scans[i].int_seq[np.argmin(mz_diff)])
                     eic_mz = np.append(eic_mz, self.scans[i].mz_seq[np.argmin(mz_diff)])

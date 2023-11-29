@@ -273,6 +273,7 @@ class Roi:
         self.is_isotope = False
         self.isotope_mz_seq = []
         self.isotope_int_seq = []
+        self.isotope_id_seq = []
 
         # In-source fragments
         self.in_source_fragment = False

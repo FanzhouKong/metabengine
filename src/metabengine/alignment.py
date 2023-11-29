@@ -209,7 +209,7 @@ def sum_aligned_features(feature_list):
         f.adduct_type = f.highest_roi.adduct_type
 
 
-def output_aligned_features(feature_list, file_names, path, int_values="peak_area"):
+def output_aligned_features(feature_list, file_names, path, int_values="peak_height"):
     """
     A function to output the aligned features.
 

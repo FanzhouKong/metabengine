@@ -19,8 +19,6 @@ class Params:
 
         # Need to be specified by the user
         self.project_dir = None   # Project directory, character string
-        self.targeted = False     # Whether the workflow is targeted, default is False
-        self.targeted_list = None
 
         self.rt_range = [0.0, 1000.0]   # RT range in minutes, list of two numbers
         self.mode = "dda"         # Acquisition mode, "dda", "dia", or "full_scan"
@@ -30,12 +28,11 @@ class Params:
         # Parameters for feature detection
         self.mz_tol_ms1 = 0.01    # m/z tolerance for MS1, default is 0.01
         self.mz_tol_ms2 = 0.015   # m/z tolerance for MS2, default is 0.015
-        self.int_tol = 1000       # Intensity tolerance, default is 10000 for Orbitrap and 1000 for other instruments
+        self.int_tol = 1000       # Intensity tolerance, default is 30000 for Orbitrap and 1000 for other instruments
         self.roi_gap = 2          # Gap within a feature, default is 2 (i.e. 2 consecutive scans without signal)
         self.min_ion_num = 10     # Minimum scan number a feature, default is 10
-        self.ann_model = None     # Model for feature annotation, keras.src.engine.sequential.Sequential object
         self.cut_roi = True       # Whether to cut ROI, default is True
-        self.discard_short_roi = True   # Whether to discard short ROI with length < 5 and without MS2, default is Tr
+        self.discard_short_roi = True   # Whether to discard short ROI with length < 5 and without MS2, default is True
 
         # Parameters for feature alignment
         self.align_mz_tol = 0.01        # m/z tolerance for MS1, default is 0.01
@@ -43,7 +40,7 @@ class Params:
 
         # Parameters for feature annotation
         self.msms_library = None   # MS/MS library in MSP format, character string
-        self.ppr = 0.8             # Peak peak correlation threshold, default is 0.8
+        self.ppr = 0.7             # Peak peak correlation threshold, default is 0.7
 
         # Parameters for output
         self.output_single_file = False   # Whether to output a single file for each raw file, default is False
