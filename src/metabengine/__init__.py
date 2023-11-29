@@ -7,11 +7,12 @@ from . import raw_data_utils as raw
 from .params import Params
 from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope, annotate_adduct, annotate_in_source_fragment
-from .alignment import alignement, sum_aligned_features, output_aligned_features
+from .alignment import alignement, summarize_aligned_features, output_aligned_features
 import os
 from keras.models import load_model
 from .annotation import annotate_features, annotate_rois
 import pickle
+
 
 def feature_detection(file_name, params, annotation=False):
     """
@@ -25,39 +26,45 @@ def feature_detection(file_name, params, annotation=False):
         The parameters for the workflow.
     """
 
-    # create a MSData object1
+    # create a MSData object
     d = raw.MSData()
 
-    d.read_raw_data(file_name, params)  # read raw data
-    d.drop_ion_by_int()
-    d.find_rois() # find ROIs
+    # read raw data
+    d.read_raw_data(file_name, params)
 
+    # drop ions by intensity (defined in params.int_tol)
+    d.drop_ion_by_int()
+
+    # detect region of interests (ROIs)
+    d.find_rois()
+
+    # cut ROIs by MS2 spectra
     if d.params.cut_roi:
-        d.cut_rois()  # cut ROIs
+        d.cut_rois()
 
     # sort ROI by m/z, find roi quality by length, find the best MS2
     d.process_rois()
-    # predict feature quality
-    data_path_ann = os.path.join(os.path.dirname(__file__), 'model', "peak_quality_NN.keras")
-    d.params.ann_model = load_model(data_path_ann)
 
+    # predict feature quality. If the model is not loaded, load the model
+    if d.params.ann_model is None:
+        data_path_ann = os.path.join(os.path.dirname(__file__), 'model', "peak_quality_NN.keras")
+        d.params.ann_model = load_model(data_path_ann)
     predict_quality(d)
 
-    print("Number of regular ROIs: " + str(len(d.rois)))
+    print("Number of extracted ROIs: " + str(len(d.rois)))
 
     # annotate isotopes, adducts, and in-source fragments
     annotate_isotope(d)
     annotate_in_source_fragment(d)
     annotate_adduct(d)
 
-    annotated = False
+    # annotate MS2 spectra
     if annotation and d.params.msms_library is not None:
         annotate_rois(d)
-        annotated = True
 
-    # output single file
+    # output single file to a csv file
     if d.params.output_single_file:
-        d.output_single_file(annotated)
+        d.output_single_file()
 
     return d
 
@@ -74,33 +81,45 @@ def process_files(file_names, params):
         The parameters for the workflow.
     """
 
+    # generate a list to store all the features
     feature_list = []
 
-    alignment_time = 0
+    # load the ANN model for peak quality prediction
+    data_path_ann = os.path.join(os.path.dirname(__file__), 'model', "peak_quality_NN.keras")
+    params.ann_model = load_model(data_path_ann)
 
+    # process each file
     for file_name in file_names:
-        print("Processing file: " + file_name)
+        print("Processing file: " + os.path.basename(file_name))
+        # feature detection
         d = feature_detection(file_name, params)
+
+        # remove the features with scan number < 5 and no MS2 from the feature alignment
         d.rois = [roi for roi in d.rois if roi.length >= 5 or roi.best_ms2 is not None]
-        print("Number of regular ROIs after discarding short ROIs: " + str(len(d.rois)))
+        print("Number of ROIs for alignment: " + str(len(d.rois)))
+
+        # feature alignment
         alignement(feature_list, d)
         print("-----------------------------------")
     
-    sum_aligned_features(feature_list)
+    # summarize aligned features
+    summarize_aligned_features(feature_list)
 
     # annotation
     if params.msms_library is not None:
         annotate_features(feature_list, params)
 
+    # output aligned features to a csv file
     if params.output_aligned_file:
         output_aligned_features(feature_list, file_names, params.project_dir)
 
-    return feature_list, alignment_time
+    return feature_list
 
 
 def read_raw_file_to_obj(file_name, params=None):
     """
     Read a raw file to a MSData object.
+    It's a useful function for data visualization or brief data analysis.
 
     Parameters
     ----------
@@ -108,7 +127,10 @@ def read_raw_file_to_obj(file_name, params=None):
         The file name of the raw file.
     """
 
+    # create a MSData object
     d = raw.MSData()
+
+    # read raw data
     if params is None:
         params = Params()
     d.read_raw_data(file_name, params)

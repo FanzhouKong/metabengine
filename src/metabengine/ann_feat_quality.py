@@ -16,6 +16,10 @@ def predict_quality(d, model=None, threshold=0.5):
     ----------------------------------------------------------
     d: MSData object
         An MSData object that contains the MS data.
+    model: keras model
+        A keras model that is trained to predict the quality of a feature.
+    threshold: float
+        A threshold to determine the quality of a feature.
     """
 
     if model is None:

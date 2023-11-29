@@ -33,7 +33,7 @@ def annotate_isotope(d):
         r.isotope_mz_seq = [r.mz]
 
         # go to that scan and determine the isotopes
-        isotopes = r.mz + _isotope_mass_array
+        isotopes = r.mz + _ISOTOPE_MASS_ARRAY
 
         last_mz = r.mz
         isotope_id_seq = []
@@ -163,11 +163,11 @@ def annotate_adduct(d):
 
     if d.params.ion_mode.lower() == "positive":
         default_adduct = "[M+H]+"
-        adduct_mass_diffence = _adduct_mass_diffence_pos_against_H
+        adduct_mass_diffence = _ADDUCT_MASS_DIFFERENCE_POS_AGAINST_H
 
     elif d.params.ion_mode.lower() == "negative":
         default_adduct = "[M-H]-"
-        adduct_mass_diffence = _adduct_mass_diffence_neg_against_H
+        adduct_mass_diffence = _ADDUCT_MASS_DIFFERENCE_NEG_AGAINST_H
 
 
     # find adducts by assuming the current roi is the [M+H]+ ion in positive mode and [M-H]- ion in negative mode
@@ -256,30 +256,6 @@ def peak_peak_correlation(roi1, roi2):
     return pp_cor
 
 
-def _find_iso_from_scan(scan, mz):
-    """
-    Find the charge state of a m/z value based on a scan.  
-    """
-
-    isotopes = []
-    distribution = []
-    mass_diff = scan.mz_seq - mz
-
-    for idx, md in enumerate(mass_diff):
-        if md < 0.04:
-            continue
-        if md > 10:
-            break
-
-        tmp = md/(1.003355/2)
-        a = round(tmp)
-        if abs(1.003355*a/2 - md) < 0.014:
-            isotopes.append(scan.mz_seq[idx])
-            distribution.append(scan.int_seq[idx])
-
-    return isotopes, distribution
-
-
 def get_charge_state(mz_seq):
     
     if len(mz_seq) < 2:
@@ -294,7 +270,7 @@ def get_charge_state(mz_seq):
             return 2
 
 
-_isotopic_mass_diffence = {
+_ISOTOPIC_MASS_DIFFERENCE = {
     'H': 1.006277,
     'C': 1.003355,
     'N': 0.997035,
@@ -305,7 +281,7 @@ _isotopic_mass_diffence = {
 
 
 # adduct mass difference is calculated against the [M+H]+ ion in positive mode, and [M-H]- ion in negative mode
-_adduct_mass_diffence_neg = {
+_ADDUCT_MASS_DIFFERENCE_NEG = {
     '-H': -1.007276,
     '-H-H2O': -19.01784,
     '+Cl': 34.969401,
@@ -313,7 +289,7 @@ _adduct_mass_diffence_neg = {
     '+HCOO': 44.998203,
 }
 
-_adduct_mass_diffence_pos = {
+_ADDUCT_MASS_DIFFERENCE_POS = {
     '+H': 1.007276,
     '+H-H2O': -17.003289,
     '+Na': 22.989221,
@@ -322,14 +298,14 @@ _adduct_mass_diffence_pos = {
 }
 
 
-_adduct_mass_diffence_pos_against_H = {
+_ADDUCT_MASS_DIFFERENCE_POS_AGAINST_H = {
     '[M+H-H2O]+': -18.010565,
     '[M+Na]+': 21.981945,
     '[M+K]+': 37.955882,
     '[M+NH4]+': 17.02655,
 }
 
-_adduct_mass_diffence_neg_against_H = {
+_ADDUCT_MASS_DIFFERENCE_NEG_AGAINST_H = {
     '[M-H-H2O]-': -18.010564,
     '[M+Cl]-': 35.976677,
     '[M+CH3COO]-': 60.021129,
@@ -337,4 +313,4 @@ _adduct_mass_diffence_neg_against_H = {
 }
 
 
-_isotope_mass_array = np.arange(0, 10.1, 1.003355/2)[1:]
+_ISOTOPE_MASS_ARRAY = np.arange(0, 10.1, 1.003355/2)[1:]

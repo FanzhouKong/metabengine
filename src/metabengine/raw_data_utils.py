@@ -272,6 +272,40 @@ class MSData:
         self.rois.sort(key=lambda x: x.mz)
         for idx in range(len(self.rois)):
             self.rois[idx].id = idx
+
+
+    def _process_rois_bin_generation(self):
+        """
+        Function to process ROIs to only keep the ones with MS2.
+
+        Parameters
+        ----------------------------------------------------------
+        params: Params object
+            A Params object that contains the parameters.
+        """      
+
+        for roi in self.rois[::-1]:
+            if len(roi.ms2_seq) == 0:
+                self.rois.remove(roi)
+                continue
+            
+            roi.sum_roi()
+
+            roi.int_seq = np.array(roi.int_seq)
+            
+            # 1. find roi quality by length
+            if roi.length >= self.params.min_ion_num:
+                roi.quality = 'good'
+            else:
+                roi.quality = 'short'
+            
+            # 2. find the best MS2
+            roi.find_best_ms2()
+            roi.ms2_seq = []
+
+        self.rois.sort(key=lambda x: x.mz)
+        for idx in range(len(self.rois)):
+            self.rois[idx].id = idx
     
 
     def plot_bpc(self, label_name=False, output=False):
@@ -302,7 +336,7 @@ class MSData:
             plt.show()
         
     
-    def output_single_file(self, annotated=False):
+    def output_single_file(self):
         """
         Function to generate a report for rois in csv format.'
         """
@@ -329,8 +363,7 @@ class MSData:
                     roi.adduct_type, roi.adduct_parent_roi_id, str(roi.adduct_child_roi_id)[1:-1],
                     roi.quality]
             
-            if annotated:
-                temp.extend([roi.annotation, roi.formula, roi.similarity, roi.matched_peak_number, roi.smiles, roi.inchikey])
+            temp.extend([roi.annotation, roi.formula, roi.similarity, roi.matched_peak_number, roi.smiles, roi.inchikey])
 
             result.append(temp)
 
@@ -343,8 +376,7 @@ class MSData:
                     "ISF_parent_ID", "ISF_child_ID", "Adduct_type",
                     "Adduct_base_ID", "Adduct_other_ID", "Quality"]
         
-        if annotated:
-            columns.extend(["Annotation", "Formula", "Similarity", "Matched_peak_number", "SMILES", "InChIKey"])
+        columns.extend(["Annotation", "Formula", "Similarity", "Matched_peak_number", "SMILES", "InChIKey"])
 
         df = pd.DataFrame(result, columns=columns)
         

@@ -33,6 +33,7 @@ class Params:
         self.min_ion_num = 10     # Minimum scan number a feature, default is 10
         self.cut_roi = True       # Whether to cut ROI, default is True
         self.discard_short_roi = True   # Whether to discard short ROI with length < 5 and without MS2, default is True
+        self.ann_model = None     # ANN model for peak quality prediction, default is None
 
         # Parameters for feature alignment
         self.align_mz_tol = 0.01        # m/z tolerance for MS1, default is 0.01
@@ -47,17 +48,28 @@ class Params:
         self.output_aligned_file = True   # Output aligned file path, character string
 
 
-    def show_params_info(self):
+    def __str__(self):
         """
         Function to print the parameters.
         ----------------------------------------------------------
         """
 
-        print("m/z tolerance (MS1):", self.mz_tol_ms1)
-        print("m/z tolerance (MS2):", self.mz_tol_ms2)
-        print("Intensity tolerance:", self.int_tol)
-        print("ROI gap:", self.roi_gap)
-        print("MS2 similarity tolerance:", self.ms2_sim_tol)
-        print("Acquisition mode:", self.mode)
-        print("Retention time range:", self.rt_range)
-        print("Project directory:", self.proj_dir)
+        print("Project directory: " + self.project_dir)
+        print("RT range: " + str(self.rt_range))
+        print("Acquisition mode: " + self.mode)
+        print("MS2 similarity tolerance: " + str(self.ms2_sim_tol))
+        print("Ionization mode: " + self.ion_mode)
+        print("m/z tolerance for MS1: " + str(self.mz_tol_ms1))
+        print("m/z tolerance for MS2: " + str(self.mz_tol_ms2))
+        print("Intensity tolerance: " + str(self.int_tol))
+        print("Gap within a feature: " + str(self.roi_gap))
+        print("Minimum scan number a feature: " + str(self.min_ion_num))
+        print("Whether to cut ROI: " + str(self.cut_roi))
+        print("Whether to discard short ROI: " + str(self.discard_short_roi))
+        print("ANN model for peak quality prediction: " + str(self.ann_model))
+        print("m/z tolerance for MS1: " + str(self.align_mz_tol))
+        print("RT tolerance: " + str(self.align_rt_tol))
+        print("MS/MS library in MSP format: " + str(self.msms_library))
+        print("Peak peak correlation threshold: " + str(self.ppr))
+        print("Whether to output a single file for each raw file: " + str(self.output_single_file))
+        print("Output aligned file path: " + str(self.output_aligned_file))

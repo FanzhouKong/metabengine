@@ -30,6 +30,7 @@ def alignement(feature_list, d):
         feature_list.sort(key=lambda x: x.highest_roi_intensity, reverse=True)
 
     else:
+        # get the number of features in the feature list
         existed_file_num = len(feature_list[0].mz_seq)
 
         mz_seq = np.array([roi.mz for roi in d.rois])
@@ -185,7 +186,7 @@ class AlignedFeature:
             print("No matched MS/MS spectrum found.")
 
 
-def sum_aligned_features(feature_list):
+def summarize_aligned_features(feature_list):
     """
     A function to summarize the aligned features.
 

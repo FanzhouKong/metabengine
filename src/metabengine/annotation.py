@@ -134,7 +134,9 @@ def annotate_rois(d):
 
 
 def has_chlorine(iso):
+    # to be constructed
     pass
 
 def has_bromine(iso):
+    # to be constructed
     pass
