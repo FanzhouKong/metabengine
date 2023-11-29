@@ -32,12 +32,12 @@ class Params:
         self.roi_gap = 2          # Gap within a feature, default is 2 (i.e. 2 consecutive scans without signal)
         self.min_ion_num = 10     # Minimum scan number a feature, default is 10
         self.cut_roi = True       # Whether to cut ROI, default is True
-        self.discard_short_roi = True   # Whether to discard short ROI with length < 5 and without MS2, default is True
         self.ann_model = None     # ANN model for peak quality prediction, default is None
 
         # Parameters for feature alignment
         self.align_mz_tol = 0.01        # m/z tolerance for MS1, default is 0.01
         self.align_rt_tol = 0.2         # RT tolerance, default is 0.2
+        self.discard_short_roi = True   # Whether to discard short ROI with length < 5 and without MS2 from feature alignment, default is True
 
         # Parameters for feature annotation
         self.msms_library = None   # MS/MS library in MSP format, character string
