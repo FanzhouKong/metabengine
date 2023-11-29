@@ -12,6 +12,7 @@ import os
 from keras.models import load_model
 from .annotation import annotate_features, annotate_rois
 import pickle
+import time
 
 
 def feature_detection(file_name, params, annotation=False):
@@ -204,5 +205,4 @@ def load_project(project_dir):
     with open(os.path.join(project_dir, "project.pickle"), "rb") as f:
         feature_list = pickle.load(f)
     
-    return feature_list       
-        
+    return feature_list
