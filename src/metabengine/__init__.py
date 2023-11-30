@@ -12,7 +12,7 @@ import os
 from keras.models import load_model
 from .annotation import annotate_features, annotate_rois
 import pickle
-import time
+import pandas as pd
 
 
 def feature_detection(file_name, params, annotation=False):
@@ -153,35 +153,33 @@ def untargeted_workflow(parameters):
     if not os.path.exists(parameters.project_dir):
         raise ValueError("The project directory does not exist.")
     
-    # Check if the three file folders have been created
-    if not os.path.exists(os.path.join(parameters.project_dir, "qc")):
-        os.makedirs(os.path.join(parameters.project_dir, "qc"))
-    if not os.path.exists(os.path.join(parameters.project_dir, "blank")):
-        os.makedirs(os.path.join(parameters.project_dir, "blank"))
     if not os.path.exists(os.path.join(parameters.project_dir, "sample")):
         os.makedirs(os.path.join(parameters.project_dir, "sample"))
     
-    # Move files to the three folders by their names if there is any mzML or mzXML files in the project folder
+    # Move files to the sample folder if not moved
     file_names = os.listdir(parameters.project_dir)
     file_names = [file_name for file_name in file_names if file_name.endswith(".mzML") or file_name.endswith(".mzXML")]
     if len(file_names) > 0:
         for i in file_names:
-            if "qc" in i.lower() or 'pool' in i.lower():
-                os.rename(os.path.join(parameters.project_dir, i), os.path.join(parameters.project_dir, "qc", i))
-            elif "blank" in i.lower():
-                os.rename(os.path.join(parameters.project_dir, i), os.path.join(parameters.project_dir, "blank", i))
-            else:
-                os.rename(os.path.join(parameters.project_dir, i), os.path.join(parameters.project_dir, "sample", i))
+            os.rename(os.path.join(parameters.project_dir, i), os.path.join(parameters.project_dir, "sample", i))
     
-    # list the absolute paths of the files in the three folders
-    qc_file_names = os.listdir(os.path.join(parameters.project_dir, "qc"))
-    qc_file_names = [os.path.join(parameters.project_dir, "qc", file_name) for file_name in qc_file_names]
-    blank_file_names = os.listdir(os.path.join(parameters.project_dir, "blank"))
-    blank_file_names = [os.path.join(parameters.project_dir, "blank", file_name) for file_name in blank_file_names]
-    sample_file_names = os.listdir(os.path.join(parameters.project_dir, "sample"))
-    sample_file_names = [os.path.join(parameters.project_dir, "sample", file_name) for file_name in sample_file_names]
-
-    file_names = qc_file_names + sample_file_names + blank_file_names
+    # Check the raw files are loaded
+    file_names = os.listdir(os.path.join(parameters.project_dir, "sample"))
+    if len(file_names) == 0:
+        raise ValueError("No raw files are found in the project directory.")
+    
+    # Sort the file names to process the data in the order of QC, sample, and blank
+    # check if the sample table is available
+    if not os.path.exists(os.path.join(parameters.project_dir, "sample_table.csv")):
+        print("No sample table is found in the project directory. All samples will be treated as regular samples.")
+    else:
+        sample_table = pd.read_csv(os.path.join(parameters.project_dir, "sample_table.csv"))
+    
+    file_names_reorder = []
+    for i in range(len(sample_table)):
+        if sample_table.iloc[i, 0] in file_names:
+            file_names_reorder.append(sample_table.iloc[i, 0])
+    
 
     # process files
     feature_list = process_files(file_names, parameters)

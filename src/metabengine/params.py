@@ -32,7 +32,6 @@ class Params:
         self.roi_gap = 2          # Gap within a feature, default is 2 (i.e. 2 consecutive scans without signal)
         self.min_ion_num = 10     # Minimum scan number a feature, default is 10
         self.cut_roi = True       # Whether to cut ROI, default is True
-        self.ann_model = None     # ANN model for peak quality prediction, default is None
 
         # Parameters for feature alignment
         self.align_mz_tol = 0.01        # m/z tolerance for MS1, default is 0.01
@@ -46,6 +45,9 @@ class Params:
         # Parameters for output
         self.output_single_file = False   # Whether to output a single file for each raw file, default is False
         self.output_aligned_file = True   # Output aligned file path, character string
+
+        # Other parameters (only change if necessary)
+        self.ann_model = None     # ANN model for peak quality prediction, default is None
 
 
     def __str__(self):
