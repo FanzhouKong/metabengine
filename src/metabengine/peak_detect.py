@@ -285,6 +285,13 @@ class Roi:
         self.adduct_parent_roi_id = None
         self.adduct_child_roi_id = []
 
+        # Annotation
+        self.annotation = None
+        self.formula = None
+        self.similarity = None
+        self.matched_peak_number = None
+        self.smiles = None
+        self.inchikey = None
 
     def extend_roi(self, scan_idx, rt, mz, intensity):
         """

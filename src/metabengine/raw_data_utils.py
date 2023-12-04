@@ -282,12 +282,11 @@ class MSData:
         ----------------------------------------------------------
         params: Params object
             A Params object that contains the parameters.
-        """      
+        """
 
-        for roi in self.rois[::-1]:
-            if len(roi.ms2_seq) == 0:
-                self.rois.remove(roi)
-                continue
+        self.rois = [roi for roi in self.rois if len(roi.ms2_seq) > 0]
+
+        for roi in self.rois:
             
             roi.sum_roi()
 
@@ -304,6 +303,17 @@ class MSData:
             roi.ms2_seq = []
 
         self.rois.sort(key=lambda x: x.mz)
+        for idx in range(len(self.rois)):
+            self.rois[idx].id = idx
+    
+
+    def _discard_isotopes(self):
+        """
+        Function to discard isotopes.
+        """
+
+        self.rois = [roi for roi in self.rois if not roi.is_isotope]
+
         for idx in range(len(self.rois)):
             self.rois[idx].id = idx
     
@@ -381,7 +391,7 @@ class MSData:
         df = pd.DataFrame(result, columns=columns)
         
         # save the dataframe to csv file
-        path = self.params.project_dir + self.file_name + ".csv"
+        path = self.params.project_dir + "single_file_output/" + self.file_name + ".csv"
         df.to_csv(path, index=False)
     
 

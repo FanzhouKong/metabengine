@@ -61,15 +61,6 @@ def annotate_features(feature_list, params):
     entropy_search = load_msms_db(params.msms_library)
 
     for f in feature_list:
-
-        f.annotation = None
-        f.similarity = None
-        f.matched_peak_number = None
-        f.smiles = None
-        f.inchikey = None
-        f.matched_precursor_mz = None
-        f.matched_peaks = None
-        f.formula = None
         
         if f.best_ms2 is not None:
             peaks = entropy_search.clean_spectrum_for_search(f.mz, f.best_ms2.peaks)
@@ -88,9 +79,25 @@ def annotate_features(feature_list, params):
                 f.matched_precursor_mz = matched['precursor_mz']
                 f.matched_peaks = matched['peaks']
                 f.formula = matched['formula'] if 'formula' in matched else None
+                f.annotation_mode = 'identity_search'
+            else:
+                entropy_similarity = entropy_search.hybrid_search(precursor_mz=f.mz, peaks=peaks, ms1_tolerance_in_da=params.mz_tol_ms1, 
+                                                                  ms2_tolerance_in_da=params.mz_tol_ms2)
+                idx = np.argmax(entropy_similarity)
+                if entropy_similarity[idx] > params.ms2_sim_tol:
+                    matched = entropy_search[np.argmax(entropy_similarity)]
+                    matched = {k.lower():v for k,v in matched.items()}
+                    f.annotation = matched['name']
+                    f.similarity = entropy_similarity[idx]
+                    f.smiles = matched['smiles'] if 'smiles' in matched else None
+                    f.inchikey = matched['inchikey'] if 'inchikey' in matched else None
+                    f.matched_precursor_mz = matched['precursor_mz']
+                    f.matched_peaks = matched['peaks']
+                    f.formula = matched['formula'] if 'formula' in matched else None
+                    f.annotation_mode = 'hybrid_search'
 
 
-def annotate_features_all_mode_search(feature_list, params):
+def annotate_features_all_mode_search(feature_list, params, mode='hybrid'):
     """
     A function to annotate features based on their MS/MS spectra and a MS/MS database.
     Four modes are supported: identity search, open search, neutral loss search, and hybrid search.
@@ -102,6 +109,12 @@ def annotate_features_all_mode_search(feature_list, params):
         A list of features.
     params : Params object
         The parameters for the workflow.
+    mode : str
+        The mode for MS/MS search.
+        'identity': identity search
+        'hybrid': hybrid search
+        'open': open search
+        'neutral_loss': neutral loss search
     """
 
     # load the MS/MS database
@@ -109,19 +122,20 @@ def annotate_features_all_mode_search(feature_list, params):
 
     for f in feature_list:
 
-        f.annotation = None
-        f.similarity = None
-        f.matched_peak_number = None
-        f.smiles = None
-        f.inchikey = None
-        f.matched_precursor_mz = None
-        f.matched_peaks = None
-        f.formula = None
+        if f.annotation is not None:
+            continue
         
         if f.best_ms2 is not None:
             peaks = entropy_search.clean_spectrum_for_search(f.mz, f.best_ms2.peaks)
-            entropy_similarity, matched_peaks_number = entropy_search.search(precursor_mz=f.mz, peaks=peaks, ms1_tolerance_in_da=params.mz_tol_ms1,
-                                                                             ms2_tolerance_in_da=params.mz_tol_ms2, output_matched_peak_number=True)
+            if mode == 'hybrid':
+                entropy_similarity = entropy_search.hybrid_search(precursor_mz=f.mz, peaks=peaks, ms1_tolerance_in_da=params.mz_tol_ms1,
+                                                                                        ms2_tolerance_in_da=params.mz_tol_ms2, output_matched_peak_number=True)
+            elif mode == 'open':
+                entropy_similarity = entropy_search.open_search(precursor_mz=f.mz, peaks=peaks, ms1_tolerance_in_da=params.mz_tol_ms1,
+                                                                                        ms2_tolerance_in_da=params.mz_tol_ms2, output_matched_peak_number=True)
+            elif mode == 'neutral_loss':
+                entropy_similarity = entropy_search.neutral_loss_search(precursor_mz=f.mz, peaks=peaks, ms1_tolerance_in_da=params.mz_tol_ms1,
+                                                                                            ms2_tolerance_in_da=params.mz_tol_ms2, output_matched_peak_number=True)
             
             idx = np.argmax(entropy_similarity)
             if entropy_similarity[idx] > params.ms2_sim_tol:
@@ -129,13 +143,12 @@ def annotate_features_all_mode_search(feature_list, params):
                 matched = {k.lower():v for k,v in matched.items()}
                 f.annotation = matched['name']
                 f.similarity = entropy_similarity[idx]
-                f.matched_peak_number = matched_peaks_number[idx]
                 f.smiles = matched['smiles'] if 'smiles' in matched else None
                 f.inchikey = matched['inchikey'] if 'inchikey' in matched else None
                 f.matched_precursor_mz = matched['precursor_mz']
                 f.matched_peaks = matched['peaks']
                 f.formula = matched['formula'] if 'formula' in matched else None
-
+                f.annotation_mode = mode + '_search'
 
 
 def annotate_rois(d):

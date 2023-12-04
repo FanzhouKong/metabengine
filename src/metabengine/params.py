@@ -42,6 +42,9 @@ class Params:
         self.msms_library = None   # MS/MS library in MSP format, character string
         self.ppr = 0.7             # Peak peak correlation threshold, default is 0.7
 
+        # Parameters for normalization
+        self.normalization = False   # Whether to normalize the data, default is False
+
         # Parameters for output
         self.output_single_file = False   # Whether to output a single file for each raw file, default is False
         self.output_aligned_file = True   # Output aligned file path, character string

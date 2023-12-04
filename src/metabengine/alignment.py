@@ -6,6 +6,7 @@
 import numpy as np
 import pandas as pd
 from .visualization import mirror_ms2_db
+from .normalization import find_normalization_factors, sample_normalization_by_factors
 
 def alignement(feature_list, d):
     """
@@ -101,6 +102,17 @@ class AlignedFeature:
         self.is_isotope = False
         self.is_in_source_fragment = False
         self.is_adduct = False
+
+        # annotation
+        self.annotation = None
+        self.similarity = None
+        self.annotation_mode = None
+        self.matched_peak_number = None
+        self.smiles = None
+        self.inchikey = None
+        self.matched_precursor_mz = None
+        self.matched_peaks = None
+        self.formula = None
 
     def extend_feat(self, roi, front_zeros=[]):
         """
@@ -210,7 +222,7 @@ def summarize_aligned_features(feature_list):
         f.adduct_type = f.highest_roi.adduct_type
 
 
-def output_aligned_features(feature_list, file_names, path, int_values="peak_height"):
+def output_aligned_features(feature_list, file_names, path, int_values="peak_height", normalization=False):
     """
     A function to output the aligned features.
 
@@ -246,8 +258,8 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_hei
             int_seq = f.top_average_seq
 
         temp = [idx+1, f.mz, f.rt, ms2, f.charge_state, f.is_isotope, iso_dist,
-                f.is_in_source_fragment, f.adduct_type, f.annotation, f.similarity, 
-                f.matched_peak_number, f.smiles, f.inchikey, roi.quality]
+                f.is_in_source_fragment, f.adduct_type, f.annotation, f.annotation_mode,
+                f.similarity, f.matched_peak_number, f.smiles, f.inchikey, roi.quality]
                 
         temp.extend(int_seq)
 
@@ -255,10 +267,20 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_hei
 
     # convert result to a pandas dataframe
     columns = ["id", "mz", "rt", "ms2", "charge_state", "is_isotope", "isotope_dist",
-                "in_source_fragment", "adduct_type", "annotation", "similarity_score", 
-                "matched_peak_number", "smiles", "inchikey", "quality"]
+                "in_source_fragment", "adduct_type", "annotation", "annotation mode", 
+                "similarity_score", "matched_peak_number", "smiles", "inchikey", "quality"]
+    col_num = len(columns)
     columns.extend(file_names)
     df = pd.DataFrame(result, columns=columns)
+
+    # run normalization
+    if normalization:
+        array_all = np.array(df.iloc[:, col_num:])
+        array_good = array_all[np.array(df['quality']=='good'), :]
+        v = find_normalization_factors(array_good, method='pqn')
+        print(v)
+        array_all = sample_normalization_by_factors(array_all, v)
+        df.iloc[:, 16:] = array_all
     
     # save the dataframe to csv file
     path = path + "aligned_feature_table.csv"
