@@ -301,7 +301,7 @@ def process_files_for_bin_generation(file_names, params):
     params.ann_model = load_model(data_path_ann)
 
     # process each file
-    for i, file_name in enumerate(file_names):
+    for file_name in file_names:
         print("Processing file: " + os.path.basename(file_name))
         # feature detection
         d = _bin_detection(file_name, params)
@@ -310,6 +310,3 @@ def process_files_for_bin_generation(file_names, params):
         output_file_name = os.path.splitext(output_file_name)[0]
         with open(params.project_dir + "processed_data/" + output_file_name + ".pkl", "wb") as f:
             pickle.dump(d, f)
-        
-        if (i+1)%1000 == 0:
-            print("Processed " + str(i+1) + " files.")
