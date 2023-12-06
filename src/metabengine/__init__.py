@@ -114,7 +114,7 @@ def process_files(file_names, params):
     if params.output_aligned_file:
         output_file_names = [os.path.basename(file_name) for file_name in file_names]
         output_file_names = [os.path.splitext(file_name)[0] for file_name in output_file_names]
-        output_aligned_features(feature_list, file_names, params.project_dir)
+        output_aligned_features(feature_list, file_names, params.project_dir, normalization=params.run_normalization)
 
     return feature_list
 

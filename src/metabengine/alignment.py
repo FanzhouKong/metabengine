@@ -270,7 +270,9 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_hei
                 "in_source_fragment", "adduct_type", "annotation", "annotation mode", 
                 "similarity_score", "matched_peak_number", "smiles", "inchikey", "quality"]
     col_num = len(columns)
-    columns.extend(file_names)
+    file_names_output = [name.split("/")[-1].split(".")[0] for name in file_names]
+
+    columns.extend(file_names_output)
     df = pd.DataFrame(result, columns=columns)
 
     # run normalization
@@ -278,7 +280,6 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_hei
         array_all = np.array(df.iloc[:, col_num:])
         array_good = array_all[np.array(df['quality']=='good'), :]
         v = find_normalization_factors(array_good, method='pqn')
-        print(v)
         array_all = sample_normalization_by_factors(array_all, v)
         df.iloc[:, 16:] = array_all
     

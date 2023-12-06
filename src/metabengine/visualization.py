@@ -51,7 +51,7 @@ def random_color_generator():
 _color_list = ["red", "blue", "green", "orange", "purple", "brown", "pink", "gray", "olive", "cyan"]
 
 
-def plot_roi(d, roi, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None, output=False, break_scan=None):
+def plot_roi(d, roi, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None, output=False, break_scan=None, label_quality=True):
     """
     Function to plot EIC of a target m/z.
     """
@@ -83,7 +83,8 @@ def plot_roi(d, roi, mz_tol=0.01, rt_range=[0, np.inf], rt_window=None, output=F
     plt.xticks(fontsize=14, fontname='Arial')
     plt.yticks(fontsize=14, fontname='Arial')
     plt.text(eic_rt[0], np.max(eic_int)*0.95, "m/z = {:.4f}".format(roi.mz), fontsize=12, fontname='Arial')
-    plt.text(eic_rt[0] + (eic_rt[-1]-eic_rt[0])*0.2, np.max(eic_int)*0.95, "Quality = {}".format(roi.quality), fontsize=12, fontname='Arial', color="blue")
+    if label_quality:
+        plt.text(eic_rt[0] + (eic_rt[-1]-eic_rt[0])*0.2, np.max(eic_int)*0.95, "Quality = {}".format(roi.quality), fontsize=12, fontname='Arial', color="blue")
     plt.text(eic_rt[0] + (eic_rt[-1]-eic_rt[0])*0.6, np.max(eic_int)*0.95, d.file_name, fontsize=10, fontname='Arial', color="gray")
 
     if output:

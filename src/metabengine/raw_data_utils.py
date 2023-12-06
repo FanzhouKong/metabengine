@@ -366,7 +366,7 @@ class MSData:
                 ms2 = ms2[:-1]
 
             temp = [roi.id, roi.mz, roi.rt, roi.length, roi.rt_seq[0],
-                    roi.rt_seq[1], roi.peak_area, roi.peak_height,
+                    roi.rt_seq[-1], roi.peak_area, roi.peak_height,
                     roi.top_average, ms2,
                     roi.charge_state, roi.is_isotope, str(roi.isotope_id_seq)[1:-1], iso_dist,
                     roi.in_source_fragment, roi.isf_parent_roi_id, str(roi.isf_child_roi_id)[1:-1],
