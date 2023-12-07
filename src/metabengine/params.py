@@ -37,6 +37,7 @@ class Params:
         self.align_mz_tol = 0.01        # m/z tolerance for MS1, default is 0.01
         self.align_rt_tol = 0.2         # RT tolerance, default is 0.2
         self.discard_short_roi = True   # Whether to discard short ROI with length < 5 and without MS2 from feature alignment, default is True
+        self.quant_method = "peak_height"   # Quantification method, "peak_height", "peak_area", or "top_average"
 
         # Parameters for feature annotation
         self.msms_library = None   # MS/MS library in MSP format, character string
@@ -44,10 +45,14 @@ class Params:
 
         # Parameters for normalization
         self.run_normalization = False   # Whether to normalize the data, default is False
+        self.normalization_method = "pqn"   # Normalization method, "pqn". See module normalization.py for details
 
         # Parameters for output
         self.output_single_file = False   # Whether to output a single file for each raw file, default is False
         self.output_aligned_file = True   # Output aligned file path, character string
+
+        # Statistical analysis
+        self.run_statistical_analysis = True   # Whether to perform statistical analysis, default is True
 
         # Other parameters (only change if necessary)
         self.ann_model = None     # ANN model for peak quality prediction, default is None

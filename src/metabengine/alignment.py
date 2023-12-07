@@ -87,6 +87,7 @@ class AlignedFeature:
         self.best_ms2 = None
         self.highest_roi = None
         self.highest_roi_intensity = 0.0
+        self.quality = "good"
 
         # annotation by MS2 matching
         self.annotation = None
@@ -100,8 +101,9 @@ class AlignedFeature:
         # isotope, in-source fragment, and adduct information
         self.charge_state = 1
         self.is_isotope = False
+        self.isotope_mz_seq = []
+        self.isotope_int_seq = []
         self.is_in_source_fragment = False
-        self.is_adduct = False
 
         # annotation
         self.annotation = None
@@ -113,6 +115,9 @@ class AlignedFeature:
         self.matched_precursor_mz = None
         self.matched_peaks = None
         self.formula = None
+
+        # statistical analysis
+        self.stats = {}
 
     def extend_feat(self, roi, front_zeros=[]):
         """
@@ -213,16 +218,19 @@ def summarize_aligned_features(feature_list):
         f.rt_seq = np.array(f.rt_seq)
         f.mz = np.mean(f.mz_seq[f.mz_seq > 0])
         f.rt = np.mean(f.rt_seq[f.rt_seq > 0])
+        f.quality = f.highest_roi.quality
 
         f.choose_best_ms2()
 
         f.charge_state = f.highest_roi.charge_state
         f.is_isotope = f.highest_roi.is_isotope
+        f.isotope_mz_seq = f.highest_roi.isotope_mz_seq
+        f.isotope_int_seq = f.highest_roi.isotope_int_seq
         f.is_in_source_fragment = f.highest_roi.in_source_fragment
         f.adduct_type = f.highest_roi.adduct_type
 
 
-def output_aligned_features(feature_list, file_names, path, int_values="peak_height", normalization=False):
+def output_aligned_features(feature_list, file_names, path, int_values="peak_height"):
     """
     A function to output the aligned features.
 
@@ -237,11 +245,10 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_hei
     result = []
 
     for idx, f in enumerate(feature_list):
-        roi = f.highest_roi
         
         iso_dist = ""
-        for i in range(len(roi.isotope_mz_seq)):
-            iso_dist += str(np.round(roi.isotope_mz_seq[i], decimals=4)) + ";" + str(np.round(roi.isotope_int_seq[i], decimals=0)) + "|"
+        for i in range(len(f.isotope_mz_seq)):
+            iso_dist += str(np.round(f.isotope_mz_seq[i], decimals=4)) + ";" + str(np.round(f.isotope_int_seq[i], decimals=0)) + "|"
         iso_dist = iso_dist[:-1]
 
         ms2 = ""
@@ -259,7 +266,7 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_hei
 
         temp = [idx+1, f.mz, f.rt, ms2, f.charge_state, f.is_isotope, iso_dist,
                 f.is_in_source_fragment, f.adduct_type, f.annotation, f.annotation_mode,
-                f.similarity, f.matched_peak_number, f.smiles, f.inchikey, roi.quality]
+                f.similarity, f.matched_peak_number, f.smiles, f.inchikey, f.quality]
                 
         temp.extend(int_seq)
 
@@ -269,19 +276,11 @@ def output_aligned_features(feature_list, file_names, path, int_values="peak_hei
     columns = ["id", "mz", "rt", "ms2", "charge_state", "is_isotope", "isotope_dist",
                 "in_source_fragment", "adduct_type", "annotation", "annotation mode", 
                 "similarity_score", "matched_peak_number", "smiles", "inchikey", "quality"]
-    col_num = len(columns)
+
     file_names_output = [name.split("/")[-1].split(".")[0] for name in file_names]
 
     columns.extend(file_names_output)
     df = pd.DataFrame(result, columns=columns)
-
-    # run normalization
-    if normalization:
-        array_all = np.array(df.iloc[:, col_num:])
-        array_good = array_all[np.array(df['quality']=='good'), :]
-        v = find_normalization_factors(array_good, method='pqn')
-        array_all = sample_normalization_by_factors(array_all, v)
-        df.iloc[:, 16:] = array_all
     
     # save the dataframe to csv file
     path = path + "aligned_feature_table.csv"

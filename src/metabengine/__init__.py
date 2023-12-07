@@ -13,6 +13,7 @@ from keras.models import load_model
 from .annotation import annotate_features, annotate_rois
 import pickle
 import pandas as pd
+from .normalization import normalize_feature_list
 
 
 def feature_detection(file_name, params, annotation=False):
@@ -110,11 +111,15 @@ def process_files(file_names, params):
     if params.msms_library is not None:
         annotate_features(feature_list, params)
 
+    # normalization
+    if params.run_normalization:
+        normalize_feature_list(feature_list, params.normalization_method)
+
     # output aligned features to a csv file
     if params.output_aligned_file:
         output_file_names = [os.path.basename(file_name) for file_name in file_names]
         output_file_names = [os.path.splitext(file_name)[0] for file_name in output_file_names]
-        output_aligned_features(feature_list, file_names, params.project_dir, normalization=params.run_normalization)
+        output_aligned_features(feature_list, file_names, params.project_dir, params.quant_method)
 
     return feature_list
 
@@ -156,10 +161,12 @@ def untargeted_workflow(parameters):
 
     # process files
     feature_list = process_files(file_names, parameters)
+
+    project_output = [parameters, feature_list]
     
     # output feature list to a pickle file
     with open(parameters.project_dir + "mbe_project.mbe", "wb") as f:
-        pickle.dump(feature_list, f)
+        pickle.dump(project_output, f)
 
     return feature_list
 

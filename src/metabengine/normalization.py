@@ -79,3 +79,39 @@ def find_reference_sample(array, method='number'):
     elif method == 'median_intensity':
         # find the reference sample with the highest median intensity
         return np.argmax(np.median(array, axis=0))
+    
+
+def normalize_feature_list(feature_list, method='pqn', blank_sample_idx=None):
+    """
+    A function to normalize samples using a feature list.
+
+    Parameters
+    ----------
+    feature_list : list
+        A list of features.
+    method : str
+        The method to find the normalization factors.
+        'pqn': probabilistic quotient normalization.
+
+    Returns
+    -------
+    numpy array
+        Normalization factors.
+    """
+
+    # Two steps: 1. find the normalization factors using feature with good peak shape
+    #            2. normalize all features using the normalization factors
+
+    array_good = np.array([f.peak_height_seq for f in feature_list if f.peak_shape == 'good'])
+    v = find_normalization_factors(array_good, method=method)
+
+    # don't normalize blank samples
+    if blank_sample_idx is not None:
+        v[blank_sample_idx] = 1
+
+    for f in feature_list:
+        for i in range(len(f.peak_height_seq)):
+            f.peak_height_seq[i] /= v[i]
+            f.peak_area_seq[i] /= v[i]
+            f.top_average_seq[i] /= v[i]
+    return v
