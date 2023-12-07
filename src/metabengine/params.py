@@ -60,7 +60,7 @@ class Params:
 
     def __str__(self):
         """
-        Function to print the parameters.
+        Print the parameters.
         ----------------------------------------------------------
         """
 

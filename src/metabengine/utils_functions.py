@@ -51,26 +51,26 @@ def ms2_grouping(ms2_list, precursor_mz_tol=0.01, similarity_tol=0.8):
         The threshold for entropy similarity. Default is 0.8.
     """
 
-    return None
+    pass
 
-    # sort ms2 by precursor m/z
-    ms2_list.sort(key=lambda x: x['precursor_mz'])
-    mz_seq = np.array([ms2['precursor_mz'] for ms2 in ms2_list])
+    # # sort ms2 by precursor m/z
+    # ms2_list.sort(key=lambda x: x['precursor_mz'])
+    # mz_seq = np.array([ms2['precursor_mz'] for ms2 in ms2_list])
 
-    # group ms2 by precursor m/z
-    ms2_groups = []
+    # # group ms2 by precursor m/z
+    # ms2_groups = []
 
-    for idx, ms2 in enumerate(ms2_list):
-        matched = np.where(abs(mz_seq - ms2['precursor_mz']) < precursor_mz_tol)[0]
-        matched = matched[matched > idx]
-        if len(matched) == 0:
-            ms2_groups.append([ms2])
-            continue
-        else:
-            cur_group = [ms2]
-            for i in matched:
-                if calculate_entropy_similarity(ms2['peaks'], ms2_list[i]['peaks']) > similarity_tol:
-                    cur_group.append(ms2_list[i])
-            ms2_groups.append(cur_group)
+    # for idx, ms2 in enumerate(ms2_list):
+    #     matched = np.where(abs(mz_seq - ms2['precursor_mz']) < precursor_mz_tol)[0]
+    #     matched = matched[matched > idx]
+    #     if len(matched) == 0:
+    #         ms2_groups.append([ms2])
+    #         continue
+    #     else:
+    #         cur_group = [ms2]
+    #         for i in matched:
+    #             if calculate_entropy_similarity(ms2['peaks'], ms2_list[i]['peaks']) > similarity_tol:
+    #                 cur_group.append(ms2_list[i])
+    #         ms2_groups.append(cur_group)
     
 
