@@ -3,16 +3,17 @@
 # A module to summarize the main data processing modules
 
 # Import modules
-from . import raw_data_utils as raw
+import os
+from keras.models import load_model
+import pickle
+import pandas as pd
+
+from .raw_data_utils import MSData
 from .params import Params
 from .ann_feat_quality import predict_quality
 from .feature_grouping import annotate_isotope, annotate_adduct, annotate_in_source_fragment
 from .alignment import alignement, summarize_aligned_features, output_aligned_features
-import os
-from keras.models import load_model
 from .annotation import annotate_features, annotate_rois
-import pickle
-import pandas as pd
 from .normalization import normalize_feature_list
 
 
@@ -29,7 +30,7 @@ def feature_detection(file_name, params, annotation=False):
     """
 
     # create a MSData object
-    d = raw.MSData()
+    d = MSData()
 
     # read raw data
     d.read_raw_data(file_name, params)
@@ -136,7 +137,7 @@ def read_raw_file_to_obj(file_name, params=None):
     """
 
     # create a MSData object
-    d = raw.MSData()
+    d = MSData()
 
     # read raw data
     if params is None:
@@ -253,7 +254,7 @@ def _bin_detection(file_name, params):
     """
 
     # create a MSData object
-    d = raw.MSData()
+    d = MSData()
 
     # read raw data
     d.read_raw_data(file_name, params)
