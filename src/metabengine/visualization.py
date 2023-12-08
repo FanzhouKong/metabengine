@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import random
 import numpy as np
+import networkx as nx
 
 def plot_bpcs(data_list=None, output=None, autocolor=False):
     """
@@ -181,4 +182,40 @@ def mirror_ms2_db(f, output=False):
         plt.close()
     else:
         plt.show()
-    
+
+
+
+def plot_network():
+
+    return None
+    # Create a new graph
+    G = nx.Graph()
+
+    # Add nodes
+    G.add_node("A")
+    G.add_node("B")
+    G.add_node("C")
+    G.add_node("D")
+    G.add_node("E")
+    G.add_node("F")
+
+    # Add edges
+    G.add_edge("A", "B")
+    G.add_edge("B", "C")
+    G.add_edge("C", "A")
+    G.add_edge("C", "D")
+    G.add_edge("D", "E")
+    G.add_edge("E", "F")
+
+    # Specify colors for each edge
+    edge_colors = ['red', 'green']
+    node_color = ['blue', 'yellow', 'red', 'green', 'purple', 'orange']
+
+    # Draw the graph
+    pos = nx.spring_layout(G)  # positions for all nodes
+    nx.draw_networkx_nodes(G, pos, node_color=node_color)
+    # nx.draw_networkx_labels(G, pos)
+    nx.draw_networkx_edges(G, pos, edge_color=edge_colors)
+
+    # Show the plot
+    plt.show()
