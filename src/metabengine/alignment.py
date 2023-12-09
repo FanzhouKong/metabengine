@@ -76,6 +76,7 @@ class AlignedFeature:
         Define the attributes of a aligned feature.
         """
 
+        self.id = None
         self.mz = 0.0
         self.rt = 0.0
         self.mz_seq = []
@@ -201,6 +202,24 @@ class AlignedFeature:
             mirror_ms2_db(self, output=output)
         else:
             print("No matched MS/MS spectrum found.")
+    
+
+    def sum_feature(self, id=None):
+        self.id = id
+        self.mz_seq = np.array(self.mz_seq)
+        self.rt_seq = np.array(self.rt_seq)
+        self.mz = np.mean(self.mz_seq[self.mz_seq > 0])
+        self.rt = np.mean(self.rt_seq[self.rt_seq > 0])
+        self.quality = self.highest_roi.quality
+
+        self.choose_best_ms2()
+
+        self.charge_state = self.highest_roi.charge_state
+        self.is_isotope = self.highest_roi.is_isotope
+        self.isotope_mz_seq = self.highest_roi.isotope_mz_seq
+        self.isotope_int_seq = self.highest_roi.isotope_int_seq
+        self.is_in_source_fragment = self.highest_roi.in_source_fragment
+        self.adduct_type = self.highest_roi.adduct_type
 
 
 def summarize_aligned_features(feature_list):
@@ -213,21 +232,8 @@ def summarize_aligned_features(feature_list):
         A list of aligned features.   
     """
 
-    for f in feature_list:
-        f.mz_seq = np.array(f.mz_seq)
-        f.rt_seq = np.array(f.rt_seq)
-        f.mz = np.mean(f.mz_seq[f.mz_seq > 0])
-        f.rt = np.mean(f.rt_seq[f.rt_seq > 0])
-        f.quality = f.highest_roi.quality
-
-        f.choose_best_ms2()
-
-        f.charge_state = f.highest_roi.charge_state
-        f.is_isotope = f.highest_roi.is_isotope
-        f.isotope_mz_seq = f.highest_roi.isotope_mz_seq
-        f.isotope_int_seq = f.highest_roi.isotope_int_seq
-        f.is_in_source_fragment = f.highest_roi.in_source_fragment
-        f.adduct_type = f.highest_roi.adduct_type
+    for i, f in enumerate(feature_list):
+        f.sum_feature(i)
 
 
 def output_aligned_features(feature_list, file_names, path, int_values="peak_height"):

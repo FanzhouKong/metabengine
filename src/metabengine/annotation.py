@@ -8,6 +8,7 @@ from ms_entropy import read_one_spectrum, FlashEntropySearch
 import pickle
 import numpy as np
 import json
+import pandas as pd
 
 def load_msms_db(path):
     """
@@ -198,6 +199,65 @@ def has_chlorine(iso):
     # to be constructed
     pass
 
+
 def has_bromine(iso):
     # to be constructed
     pass
+
+
+def feature_to_feature_search(feature_list):
+    """
+    A function to calculate the MS2 similarity between features using hybrid search.
+
+    Parameters
+    ----------
+    feature_list : list
+        A list of AlignedFeature objects.
+    
+    Returns
+    ----------
+    similarity_matrix : pandas.DataFrame
+        similarity matrix between features.
+    """
+
+    results = []
+
+    entropy_search = index_feature_list(feature_list)
+    for f in feature_list:
+        similarities = entropy_search.search(precursor_mz=f.mz, peaks=f.best_ms2.peaks)["hybrid_search"]
+        for i, s in enumerate(similarities):
+            if s > 0.8:
+                results.append([f.id, entropy_search.db[i]["id"], s, f.annotation, entropy_search.db[i]["annotation"]])
+
+    df = pd.DataFrame(results, columns=['feature_id_1', 'feature_id_2', 'similarity', 'feature_name_1', 'feature_name_2'])
+    return df
+        
+
+
+def index_feature_list(feature_list, return_db=False):
+    """
+    A function to index a list of features for spectrum entropy search.
+
+    Parameters
+    ----------
+    feature_list : list
+        A list of AlignedFeature objects.
+    """
+    
+    db = []
+    for f in feature_list:
+        if f.best_ms2 is not None:
+            tmp = {
+                "id": f.id,
+                "precursor_mz": f.mz,
+                "peaks": f.best_ms2.peaks
+            }
+            db.append(tmp)
+
+    entropy_search = FlashEntropySearch()
+    entropy_search.build_index(db)
+
+    if return_db:
+        return entropy_search, db
+    else:
+        return entropy_search

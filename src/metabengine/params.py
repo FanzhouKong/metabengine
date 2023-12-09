@@ -22,7 +22,6 @@ class Params:
 
         self.rt_range = [0.0, 1000.0]   # RT range in minutes, list of two numbers
         self.mode = "dda"         # Acquisition mode, "dda", "dia", or "full_scan"
-        self.ms2_sim_tol = 0.8    # MS2 similarity tolerance
         self.ion_mode = "positive"   # Ionization mode, "positive" or "negative"
 
         # Parameters for feature detection
@@ -42,6 +41,7 @@ class Params:
         # Parameters for feature annotation
         self.msms_library = None   # MS/MS library in MSP format, character string
         self.ppr = 0.7             # Peak peak correlation threshold, default is 0.7
+        self.ms2_sim_tol = 0.8    # MS2 similarity tolerance
 
         # Parameters for normalization
         self.run_normalization = False   # Whether to normalize the data, default is False
