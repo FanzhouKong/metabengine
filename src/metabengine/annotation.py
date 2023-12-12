@@ -205,7 +205,7 @@ def has_bromine(iso):
     pass
 
 
-def feature_to_feature_search(feature_list):
+def feature_to_feature_search(feature_list, sim_tol=0.8):
     """
     A function to calculate the MS2 similarity between features using hybrid search.
 
@@ -213,6 +213,8 @@ def feature_to_feature_search(feature_list):
     ----------
     feature_list : list
         A list of AlignedFeature objects.
+    sim_tol : float
+        The similarity threshold for feature-to-feature search.
     
     Returns
     ----------
@@ -223,15 +225,16 @@ def feature_to_feature_search(feature_list):
     results = []
 
     entropy_search = index_feature_list(feature_list)
+
     for f in feature_list:
+
         similarities = entropy_search.search(precursor_mz=f.mz, peaks=f.best_ms2.peaks)["hybrid_search"]
         for i, s in enumerate(similarities):
-            if s > 0.8:
-                results.append([f.id, entropy_search.db[i]["id"], s, f.annotation, entropy_search.db[i]["annotation"]])
+            if s > sim_tol and f.id != entropy_search[i]["id"]:
+                results.append([f.network_name, entropy_search[i]["name"], s, f.id, entropy_search[i]["id"]])
 
-    df = pd.DataFrame(results, columns=['feature_id_1', 'feature_id_2', 'similarity', 'feature_name_1', 'feature_name_2'])
+    df = pd.DataFrame(results, columns=['feature_name_1', 'feature_name_2', 'similarity','feature_id_1', 'feature_id_2'])
     return df
-        
 
 
 def index_feature_list(feature_list, return_db=False):
@@ -249,6 +252,8 @@ def index_feature_list(feature_list, return_db=False):
         if f.best_ms2 is not None:
             tmp = {
                 "id": f.id,
+                "name": f.network_name,
+                "mode": f.annotation_mode,
                 "precursor_mz": f.mz,
                 "peaks": f.best_ms2.peaks
             }
