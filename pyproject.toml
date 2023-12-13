@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "metabengine"
-version = "0.0.15"
+version = "0.0.16"
 authors = [
   { name="Huaxu Yu", email="yhxchem@outlook.com" },
 ]
@@ -23,14 +23,12 @@ dependencies = [
     "numpy>=1.24",
     "pandas>=2.0",
     "pyteomics>=4.6",
-    "scikit-learn>=1.2",
     "scipy>=1.10.1",
     "tensorflow>=2.12.0",
     "tqdm>=4.65.0",
     "lxml>=4.9.2",
-    "chemparse",
     "matplotlib",
-    "ms_entropy",
+    "ms_entropy>=1.1.1",
 ]
 
 [project.urls]

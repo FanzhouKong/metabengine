@@ -6,7 +6,6 @@
 import numpy as np
 import pandas as pd
 from .visualization import mirror_ms2_db
-from .normalization import find_normalization_factors, sample_normalization_by_factors
 
 def alignement(feature_list, d):
     """

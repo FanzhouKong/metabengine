@@ -2,9 +2,6 @@
 
 # A module to define and estimate the parameters
 
-# Import
-import numpy as np
-
 # Define a class to store the parameters
 class Params:
     """
