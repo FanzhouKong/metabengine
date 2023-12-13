@@ -15,6 +15,7 @@ from .feature_grouping import annotate_isotope, annotate_adduct, annotate_in_sou
 from .alignment import alignement, summarize_aligned_features, output_aligned_features
 from .annotation import annotate_features, annotate_rois
 from .normalization import normalize_feature_list
+from .visualization import mirror_ms2_db, plot_network
 
 
 def feature_detection(file_name, params, annotation=False):
@@ -101,6 +102,9 @@ def process_files(file_names, params):
         d.rois = [roi for roi in d.rois if roi.length >= 5 or roi.best_ms2 is not None]
         print("Number of ROIs for alignment: " + str(len(d.rois)))
 
+        if params.plot_bpc:
+            d.plot_bpc(label_name=True, output=params.project_dir + "bpc_plot/" + os.path.basename(file_name).split(".")[0] + ".png")
+
         # feature alignment
         alignement(feature_list, d)
         print("-----------------------------------")
@@ -168,6 +172,19 @@ def untargeted_workflow(parameters):
     # output feature list to a pickle file
     with open(parameters.project_dir + "mbe_project.mbe", "wb") as f:
         pickle.dump(project_output, f)
+    
+    # plot annoatated metabolites
+    if parameters.plot_ms2_matching:
+        print("Plotting annotated metabolites...")
+        for feature in feature_list:
+            if feature.annotation_mode == "identity_search":
+                output = parameters.project_dir + "ms2_matching_plot/" + "Feature_" + str(feature.id) + ".png"
+                mirror_ms2_db(feature, output=output)
+
+    # plot network
+    if parameters.plot_network:
+        print("Plotting metabolic network...This may take more than 1 min...")
+        plot_network(feature_list, output=parameters.project_dir + "network/global_network.png")
 
     return feature_list
 
@@ -200,12 +217,21 @@ def _untargeted_workflow_preparation(parameters):
     
     sample_dir = parameters.project_dir + "sample/"
     single_file_dir = parameters.project_dir + "single_file_output/"
+    ms2_matching_dir = parameters.project_dir + "ms2_matching_plot/"
+    bpc_dir = parameters.project_dir + "bpc_plot/"
+    network_dir = parameters.project_dir + "network/"
     
     if not os.path.exists(sample_dir):
         os.makedirs(sample_dir)
     if not os.path.exists(single_file_dir):
         os.makedirs(single_file_dir)
-    
+    if not os.path.exists(ms2_matching_dir):
+        os.makedirs(ms2_matching_dir)
+    if not os.path.exists(bpc_dir):
+        os.makedirs(bpc_dir)
+    if not os.path.exists(network_dir):
+        os.makedirs(network_dir)
+
     # Move files to the sample folder if not moved
     file_names = os.listdir(parameters.project_dir)
     file_names = [file_name for file_name in file_names if file_name.endswith(".mzML") or file_name.endswith(".mzXML")]
@@ -240,7 +266,7 @@ def _untargeted_workflow_preparation(parameters):
     return file_names, sample_groups
 
 
-def _bin_detection(file_name, params):
+def _bin_detection_single_file(file_name, params):
     """
     Bin detection from a raw LC-MS file (.mzML or .mzXML).
     A bin has to have MS2 spectra.
@@ -271,10 +297,8 @@ def _bin_detection(file_name, params):
 
     # sort ROI by m/z, find roi quality by length, find the best MS2
     d._process_rois_bin_generation()
+    
     # predict feature quality. If the model is not loaded, load the model
-    if d.params.ann_model is None:
-        data_path_ann = os.path.join(os.path.dirname(__file__), 'model', "peak_quality_NN.keras")
-        d.params.ann_model = load_model(data_path_ann)
     predict_quality(d)
 
     print("Number of extracted ROIs: " + str(len(d.rois)))
@@ -312,7 +336,7 @@ def process_files_for_bin_generation(file_names, params):
     for file_name in file_names:
         print("Processing file: " + os.path.basename(file_name))
         # feature detection
-        d = _bin_detection(file_name, params)
+        d = _bin_detection_single_file(file_name, params)
 
         output_file_name = os.path.basename(file_name)
         output_file_name = os.path.splitext(output_file_name)[0]

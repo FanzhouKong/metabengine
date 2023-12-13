@@ -54,6 +54,11 @@ class Params:
         # Statistical analysis
         self.run_statistical_analysis = True   # Whether to perform statistical analysis, default is True
 
+        # Visualization
+        self.plot_bpc = False   # Whether to plot BPC, default is False
+        self.plot_ms2_matching = False   # Whether to plot MS2 matching, default is False
+        self.plot_network = False   # Whether to plot network, default is False
+
         # Other parameters (only change if necessary)
         self.ann_model = None     # ANN model for peak quality prediction, default is None
 

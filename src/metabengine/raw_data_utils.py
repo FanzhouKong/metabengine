@@ -272,6 +272,22 @@ class MSData:
         self.rois.sort(key=lambda x: x.mz)
         for idx in range(len(self.rois)):
             self.rois[idx].id = idx
+    
+
+    def drop_rois_without_ms2(self):
+        """
+        Function to drop ROIs without MS2.
+        """
+
+        self.rois = [roi for roi in self.rois if len(roi.ms2_seq) > 0]
+    
+
+    def drop_rois_by_length(self, length=5):
+        """
+        Function to drop ROIs by length.
+        """
+
+        self.rois = [roi for roi in self.rois if roi.length >= length]
 
 
     def _process_rois_bin_generation(self):
@@ -284,14 +300,11 @@ class MSData:
             A Params object that contains the parameters.
         """
 
-        self.rois = [roi for roi in self.rois if len(roi.ms2_seq) > 0]
+        self.drop_rois_without_ms2()
 
         for roi in self.rois:
-            
             roi.sum_roi()
-
             roi.int_seq = np.array(roi.int_seq)
-            
             # 1. find roi quality by length
             if roi.length >= self.params.min_ion_num:
                 roi.quality = 'good'
@@ -301,7 +314,8 @@ class MSData:
             # 2. find the best MS2
             roi.find_best_ms2()
             roi.ms2_seq = []
-
+        
+        self.drop_rois_by_length()
         self.rois.sort(key=lambda x: x.mz)
         for idx in range(len(self.rois)):
             self.rois[idx].id = idx

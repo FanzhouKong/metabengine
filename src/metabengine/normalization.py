@@ -104,6 +104,7 @@ def normalize_feature_list(feature_list, method='pqn', blank_sample_idx=None):
 
     array_good = np.array([f.peak_height_seq for f in feature_list if f.quality == 'good'])
     v = find_normalization_factors(array_good, method=method)
+    v[v == 0] = 1
 
     # don't normalize blank samples
     if blank_sample_idx is not None:

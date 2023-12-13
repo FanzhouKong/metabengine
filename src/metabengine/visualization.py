@@ -185,8 +185,7 @@ def mirror_ms2_db(f, output=False):
         plt.show()
 
 
-
-def plot_network(feature_list, annotation_type="hybrid_and_identity", feature_quality="all", output=False):
+def plot_network(feature_list, annotation_type="hybrid_and_identity", feature_quality="all", show_node_name=False, output=False):
     """
     A function to plot a network graph.
 
@@ -235,17 +234,17 @@ def plot_network(feature_list, annotation_type="hybrid_and_identity", feature_qu
     for i in range(len(df)):
         edges.append((df["feature_name_1"][i], df["feature_name_2"][i]))
 
-    # define node colors: identity - red, hybrid - "#8BABD3", database - black, unknown - gray
+    # define node colors: identity - green, hybrid - "#8BABD3", database - gray, unknown - pink
     node_color = []
     for n in nodes:
         if n.startswith("hybrid"):
-            node_color.append("#8BABD3")
+            node_color.append("#FEFAE0")
         elif n.startswith("unknown"):
-            node_color.append("gray")
+            node_color.append("pink")
         elif n.startswith("DB"):
-            node_color.append("black")
+            node_color.append("#283618")
         else:
-            node_color.append("red")
+            node_color.append("#BC6C25")
 
     # define edge colors as a gradient of similarity
     edge_color = _edge_color_gradient(df["similarity"])
@@ -255,12 +254,25 @@ def plot_network(feature_list, annotation_type="hybrid_and_identity", feature_qu
 
     # make plot
     pos = nx.spring_layout(G, iterations=25)  # positions for all nodes
-    nx.draw_networkx_edges(G, pos, edge_color=edge_color, width=1)
-    nx.draw_networkx_nodes(G, pos, node_color=node_color, node_size=50, alpha=0.5, edgecolors="none")
+    nx.draw_networkx_edges(G, pos, edge_color=edge_color, width=2)
+    nx.draw_networkx_nodes(G, pos, node_color=node_color, node_size=40, alpha=0.5, edgecolors="black", linewidths=0.5)
+    if show_node_name:
+        nx.draw_networkx_labels(G, pos, font_size=8, font_family="arial", labels={n: n.split("_")[-1] for n in nodes if n.startswith("identity")})
+
+    # hide outer frame
+    plt.box(False)
+    plt.rcParams['font.size'] = 12
+    plt.rcParams['font.family'] = 'Arial'
+    # add legend with arial font
+    plt.legend(handles=[plt.Line2D([0], [0], color="#BC6C25", marker="o", lw=0, markersize=7, label="Identity", markeredgewidth=0.5, markeredgecolor="black", alpha=0.5),
+                        plt.Line2D([0], [0], color="#FEFAE0", marker="o", lw=0, markersize=7, label="Hybrid", markeredgewidth=0.5, markeredgecolor="black", alpha=0.5),
+                        plt.Line2D([0], [0], color="#283618", marker="o", lw=0, markersize=7, label="Database", markeredgewidth=0.5, markeredgecolor="black", alpha=0.5)],
+               loc="upper left", bbox_to_anchor=(0.9, 1))
 
     if output:
-        plt.savefig(output, dpi=1000)
+        plt.savefig(output, dpi=1000, bbox_inches="tight")
         plt.close()
+        df.to_csv(output.replace(".png", ".csv"), index=False)
     else:
         plt.show()
 
