@@ -342,3 +342,6 @@ def process_files_for_bin_generation(file_names, params):
         output_file_name = os.path.splitext(output_file_name)[0]
         with open(params.project_dir + "processed_data/" + output_file_name + ".pkl", "wb") as f:
             pickle.dump(d, f)
+        
+        # clear the memory
+        del d
