@@ -299,7 +299,7 @@ def _bin_detection_single_file(file_name, params):
     d._process_rois_bin_generation()
     
     # predict feature quality. If the model is not loaded, load the model
-    predict_quality(d)
+    # predict_quality(d)
 
     print("Number of extracted ROIs: " + str(len(d.rois)))
 
@@ -328,9 +328,9 @@ def process_files_for_bin_generation(file_names, params):
         The parameters for the workflow.
     """
 
-    # load the ANN model for peak quality prediction
-    data_path_ann = os.path.join(os.path.dirname(__file__), 'model', "peak_quality_NN.keras")
-    params.ann_model = load_model(data_path_ann)
+    # # load the ANN model for peak quality prediction
+    # data_path_ann = os.path.join(os.path.dirname(__file__), 'model', "peak_quality_NN.keras")
+    # params.ann_model = load_model(data_path_ann)
 
     # process each file
     for file_name in file_names:

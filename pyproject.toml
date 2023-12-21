@@ -29,6 +29,7 @@ dependencies = [
     "lxml>=4.9.2",
     "matplotlib",
     "ms_entropy>=1.1.1",
+    "networkx",
 ]
 
 [project.urls]
