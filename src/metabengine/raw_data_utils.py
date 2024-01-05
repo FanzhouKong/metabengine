@@ -409,30 +409,65 @@ class MSData:
         df.to_csv(path, index=False)
     
 
-    def get_eic_data(self, target_mz, mz_tol=0.005, rt_range=[0, np.inf]):
-        
-        eic_rt = np.array([])
-        eic_int = np.array([])
-        eic_mz = np.array([])
-        eic_scan_idx = np.array([])
+    def get_eic_data(self, target_mz, mz_tol=0.005, target_rt=None, rt_tol=0.3):
+        """
+        To get the EIC data of a target m/z.
+
+        Parameters
+        ----------
+        target_mz: float
+            Target m/z.
+        mz_tol: float
+            m/z tolerance.
+        target_rt: float
+            Target retention time.
+        rt_tol: float
+            Retention time tolerance.
+
+        Returns
+        -------
+        eic_rt: numpy array
+            Retention time of the EIC.
+        eic_int: numpy array
+            Intensity of the EIC.
+        eic_mz: numpy array
+            m/z of the EIC.
+        eic_scan_idx: numpy array
+            Scan index of the EIC.
+        """
+
+        eic_rt = []
+        eic_int = []
+        eic_mz = []
+        eic_scan_idx = []
+
+        if target_rt is None:
+            rt_range = [0, np.inf]
+        else:
+            rt_range = [target_rt - rt_tol, target_rt + rt_tol]
 
         for i in self.ms1_idx:
-            if self.scans[i].rt > rt_range[0]:
+            if self.scans[i].rt > rt_range[0] and self.scans[i].rt < rt_range[1]:
                 mz_diff = np.abs(self.scans[i].mz_seq - target_mz)
                 if len(mz_diff)>0 and np.min(mz_diff) < mz_tol:
-                    eic_rt = np.append(eic_rt, self.scans[i].rt)
-                    eic_int = np.append(eic_int, self.scans[i].int_seq[np.argmin(mz_diff)])
-                    eic_mz = np.append(eic_mz, self.scans[i].mz_seq[np.argmin(mz_diff)])
-                    eic_scan_idx = np.append(eic_scan_idx, i)
+                    eic_rt.append(self.scans[i].rt)
+                    eic_int.append(self.scans[i].int_seq[np.argmin(mz_diff)])
+                    eic_mz.append(self.scans[i].mz_seq[np.argmin(mz_diff)])
+                    eic_scan_idx.append(i)
                 else:
-                    eic_rt = np.append(eic_rt, self.scans[i].rt)
-                    eic_int = np.append(eic_int, 0.0)
-                    eic_mz = np.append(eic_mz, 0.0)
-                    eic_scan_idx = np.append(eic_scan_idx, i)
+                    eic_rt.append(self.scans[i].rt)
+                    eic_int.append(0)
+                    eic_mz.append(0)
+                    eic_scan_idx.append(i)
 
             if self.scans[i].rt > rt_range[1]:
                 break
         
+        eic_rt = np.array(eic_rt)
+        eic_int = np.array(eic_int)
+        eic_mz = np.array(eic_mz)
+        eic_scan_idx = np.array(eic_scan_idx)
+
         return eic_rt, eic_int, eic_mz, eic_scan_idx
 
 
